@@ -1,21 +1,26 @@
-from stl import mesh
+from util import static_vars
 from mpl_toolkits import mplot3d
 from matplotlib import pyplot
-from pathlib import Path
+from letter import *
 
-in_file = Path(__file__).parent / "vari_desk_hook.stl"
 
-# Create a new plot
+@static_vars(color_index=0)
+def draw_letter(axes, letter):
+    color = ['b', 'r', ][draw_letter.color_index]
+    draw_letter.color_index = (draw_letter.color_index + 1) % 2
+    for seg in letter.segs():
+        x = [seg.start().x(), seg.end().x()]
+        y = [seg.start().y(), seg.end().y()]
+        z = [seg.start().z(), seg.end().z()]
+        axes.plot(x, y, z, c=color)
+
+
 figure = pyplot.figure()
 axes = mplot3d.Axes3D(figure)
 
-# Load the STL files and add the vectors to the plot
-your_mesh = mesh.Mesh.from_file(in_file)
-axes.add_collection3d(mplot3d.art3d.Poly3DCollection(your_mesh.vectors))
+O = Letter(LINES_O, Plane.XZ)
+C = Letter(LINES_C, Plane.YZ)
+draw_letter(axes, O)
+draw_letter(axes, C)
 
-# Auto scale to the mesh size
-scale = your_mesh.points.flatten()
-axes.auto_scale_xyz(scale, scale, scale)
-
-# Show the plot to the screen
 pyplot.show()
