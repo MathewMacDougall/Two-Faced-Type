@@ -1,4 +1,4 @@
-from geometry import *
+from tft.geometry import *
 
 
 class Letter:
@@ -15,6 +15,13 @@ class Letter:
 
     def segs(self):
         return self.segs_
+
+    def vertex_z_values(self):
+        z_values = set()
+        for seg in self.segs_:
+            z_values.add(seg.start().z())
+            z_values.add(seg.end().z())
+        return z_values
 
 
 # Try fit letters in 10x10 box
