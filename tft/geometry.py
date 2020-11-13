@@ -4,8 +4,9 @@ from enum import Enum
 
 class Point():
     def __init__(self, x, y, z=0):
-        self.coords_ = [x, y, z]
+        self.coords_ = np.array([x, y, z])
 
+    @classmethod
     def fromArray(self, coords):
         if (len(coords) == 2):
             return Point(coords[0], coords[1])
@@ -31,6 +32,9 @@ class Point():
 
     def __sub__(self, other):
         return Point.fromArray(other.coords() - self.coords())
+
+    def __eq__(self, other):
+        return self.coords_ == other.coords_
 
     def __repr__(self):
         return "Point({}, {}, {})".format(self.x(), self.y(), self.z())
