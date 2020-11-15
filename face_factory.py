@@ -1,10 +1,8 @@
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakePolygon
 from OCC.Core.gp import gp_Pnt, gp_Ax2, gp_Dir
 from OCC.Extend.ShapeFactory import make_face
+from constants import AX_XZ, AX_YZ
 
-# TODO: this is currently copy-pasted
-AX_XZ = gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(0, 1, 0), gp_Dir(0, 0, 1))
-AX_YZ = gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(1, 0, 0), gp_Dir(0, 0, 1))
 
 class FaceFactory():
     @classmethod
