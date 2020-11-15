@@ -2,26 +2,50 @@ from OCC.Display.SimpleGui import init_display
 from OCC.Extend.ShapeFactory import *
 from face_factory import FaceFactory
 from OCC.Core.BRepAlgoAPI import *
+from OCC.Core.gp import *
 from constants import *
+import math
 
-display, start_display, add_menu, add_function_to_menu = init_display()
+def combine_faces(face1, face2):
+    # assuming both faces start in the XZ plane
 
-display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
-display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
-display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
+    tf = gp_Trsf()
+    # rotate from the XZ plane to the YZ plane
+    tf.SetRotation(gp_Ax1(ORIGIN, DIR_Z), math.pi / 2)
+    # TODO: mirror here too
+    face2 = BRepBuilderAPI_Transform(face2, tf).Shape()
 
-T = FaceFactory.create_letter_T(AX_XZ)
-# display.DisplayColoredShape(T, update=True, color="WHITE")
-ex_T = make_extrusion(T, 100, gp_Vec(0, 1, 0))
-# display.DisplayColoredShape(ex_T, update=True, color="WHITE" )
-# I = FaceFactory.create_letter_I(AX_YZ)
-# display.DisplayColoredShape(I, update=True, color="GREEN")
-V = FaceFactory.create_letter_V(AX_YZ)
-# display.DisplayColoredShape(V, update=True, color="BLUE")
-ex_V = make_extrusion(V, 100, gp_Vec(1, 0, 0))
-# display.DisplayColoredShape(ex_V, update=True, color="BLUE" )
+    face1_extruded = make_extrusion(face1, 100, gp_Vec(0, 1, 0))
+    face2_extruded = make_extrusion(face2, 100, gp_Vec(1, 0, 0))
+    common = BRepAlgoAPI_Common(face1_extruded, face2_extruded)
 
-common = BRepAlgoAPI_Common(ex_V, ex_T)
-display.DisplayColoredShape(common.Shape(), update=True, color="BLUE")
+    return common.Shape()
 
-start_display()
+def main():
+    # Read keyboard input
+    letter_1 = 'I'
+    letter_2 = 'V'
+
+    # Create faces
+    face_1 = FaceFactory.create_letter(letter_1)
+    face_2 = FaceFactory.create_letter(letter_2)
+
+    # Create combined letter shape
+    shape = combine_faces(face_1, face_2)
+
+    # Display final result
+    display, start_display, add_menu, add_function_to_menu = init_display()
+
+    display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
+    display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
+    display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
+
+    display.DisplayColoredShape(shape, update=True, color="WHITE")
+
+    start_display()
+
+    # TODO: output to STL
+
+
+if __name__ == '__main__':
+    main()

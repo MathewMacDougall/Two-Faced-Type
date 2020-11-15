@@ -1,23 +1,30 @@
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakePolygon
-from OCC.Core.gp import gp_Pnt, gp_Ax2, gp_Dir
+from OCC.Core.gp import gp_Pnt
 from OCC.Extend.ShapeFactory import make_face
-from constants import AX_XZ, AX_YZ
-
 
 class FaceFactory():
     @classmethod
-    def _get_create_gp_pnt_func(cls, ax):
-        func = None
-        if ax.IsCoplanar(AX_XZ, 0.01, 0.01):
-            func = lambda a, b: gp_Pnt(a, 0, b)
-        elif ax.IsCoplanar(AX_YZ, 0.01, 0.01):
-            func = lambda a, b: gp_Pnt(0, a, b)
+    def create_letter(cls, char):
+        assert char.isalpha()
+        char = char.upper()
+
+        if char == 'T':
+            return cls._create_letter_T()
+        elif char == 'I':
+            return cls._create_letter_I()
+        elif char == 'V':
+            return cls._create_letter_V()
         else:
-            raise RuntimeError("Unexpected Axis")
-        return func
+            raise RuntimeError("Unsupported character")
 
     @classmethod
-    def create_letter_T(cls, ax):
+    def _get_create_gp_pnt_func(cls):
+        # for now assume everything is in the XZ plane. We can rotate one
+        # of the faces when we go to combine them
+        return lambda a, b: gp_Pnt(a, 0, b)
+
+    @classmethod
+    def _create_letter_T(cls):
         poly = BRepBuilderAPI_MakePolygon()
         vertices = [
             (0, 10),
@@ -29,7 +36,7 @@ class FaceFactory():
             (4.5, 8.5),
             (0, 8.5),
         ]
-        create_gp_pnt = cls._get_create_gp_pnt_func(ax)
+        create_gp_pnt = cls._get_create_gp_pnt_func()
         for a, b in vertices:
             poly.Add(create_gp_pnt(a, b))
         poly.Close()
@@ -37,7 +44,7 @@ class FaceFactory():
         return make_face(poly.Wire())
 
     @classmethod
-    def create_letter_I(cls, ax):
+    def _create_letter_I(cls):
         poly = BRepBuilderAPI_MakePolygon()
         vertices = [
             (0, 10),
@@ -53,7 +60,7 @@ class FaceFactory():
             (4.5, 8.5),
             (0, 8.5),
         ]
-        create_gp_pnt = cls._get_create_gp_pnt_func(ax)
+        create_gp_pnt = cls._get_create_gp_pnt_func()
         for a, b in vertices:
             poly.Add(create_gp_pnt(a, b))
         poly.Close()
@@ -61,7 +68,7 @@ class FaceFactory():
         return make_face(poly.Wire())
 
     @classmethod
-    def create_letter_V(cls, ax):
+    def _create_letter_V(cls):
         poly = BRepBuilderAPI_MakePolygon()
         vertices = [
             (0, 10),
@@ -72,7 +79,7 @@ class FaceFactory():
             (5.75, 0),
             (4.25, 0),
         ]
-        create_gp_pnt = cls._get_create_gp_pnt_func(ax)
+        create_gp_pnt = cls._get_create_gp_pnt_func()
         for a, b in vertices:
             poly.Add(create_gp_pnt(a, b))
         poly.Close()
