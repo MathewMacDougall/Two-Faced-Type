@@ -33,11 +33,17 @@ AX_YZ = gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(1, 0, 0), gp_Dir(0, 0, 1))
 #
 # ext = make_extrusion(face, 100, gp_Vec(1, 0, 0))
 # display.DisplayColoredShape(ext, update=True, color="WHITE" )
+
+
 T = FaceFactory.create_letter_T(AX_XZ)
-display.DisplayColoredShape(T, update=True, color="WHITE")
+# display.DisplayColoredShape(T, update=True, color="WHITE")
+ex_T = make_extrusion(T, 100, gp_Vec(0, 1, 0))
+display.DisplayColoredShape(ex_T, update=True, color="WHITE" )
 # I = FaceFactory.create_letter_I(AX_YZ)
 # display.DisplayColoredShape(I, update=True, color="GREEN")
 V = FaceFactory.create_letter_V(AX_YZ)
-display.DisplayColoredShape(V, update=True, color="GREEN")
+# display.DisplayColoredShape(V, update=True, color="BLUE")
+ex_V = make_extrusion(V, 100, gp_Vec(1, 0, 0))
+display.DisplayColoredShape(ex_V, update=True, color="BLUE" )
 
 start_display()
