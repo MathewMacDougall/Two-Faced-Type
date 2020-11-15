@@ -66,8 +66,16 @@ def save_to_stl(shapes, dirpath="/home/mathew/"):
 def main(word1, word2, output_dir):
     display, start_display, add_menu, add_function_to_menu = init_display()
 
-    # face = FaceFactory.create_letter('C')
+    face1 = FaceFactory.create_from_image(Path("/home/mathew/letter_A.png"))
+    face2 = FaceFactory.create_from_image(Path("/home/mathew/letter_H.png"))
+    letters = [combine_faces(face1, face2)]
+
+
+    # face = FaceFactory.create_from_image(Path("/home/mathew/testimage.png"))
+    # # face = FaceFactory.create_letter('C')
     # display.DisplayShape(face, update=True, color="BLUE")
+    # face_extruded = make_extrusion(face, 10, gp_Vec(0, 1, 0))
+    # display.DisplayShape(face_extruded, update=True, color="BLUE")
     # start_display()
     # return
 
@@ -75,7 +83,7 @@ def main(word1, word2, output_dir):
     display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
     display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
 
-    letters = combine_words(word1, word2)
+    # letters = combine_words(word1, word2)
 
     for l in letters:
         display.DisplayColoredShape(l, update=True, color="WHITE")
