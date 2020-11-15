@@ -7,6 +7,10 @@ from constants import *
 import math
 from OCC.Core.StlAPI import StlAPI_Writer
 import argparse
+from pathlib import Path
+import os
+import errno
+
 
 def combine_faces(face1, face2):
     # assuming both faces start in the XZ plane
@@ -43,19 +47,23 @@ def combine_words(word1, word2):
 
     return offset_letters
 
-def save_to_stl(shapes, dirpath="/home/mathew/", name="test"):
-    from pathlib import Path
+def save_to_stl(shapes, dirpath="/home/mathew/"):
     assert isinstance(shapes, list)
-    assert Path(dirpath).is_dir()
+
+    try:
+        os.makedirs(Path(dirpath))
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
 
     stl_writer = StlAPI_Writer()
     stl_writer.SetASCIIMode(True)
     for index, shape in enumerate(shapes):
-        filepath = Path(dirpath, name + str(index + 1) + ".stl")
+        filepath = Path(dirpath, "combined_shape_" + str(index + 1) + ".stl")
         stl_writer.Write(shape, str(filepath))
 
 
-def main(word1, word2):
+def main(word1, word2, output_dir):
     display, start_display, add_menu, add_function_to_menu = init_display()
 
     # face = FaceFactory.create_letter('C')
@@ -72,7 +80,7 @@ def main(word1, word2):
     for l in letters:
         display.DisplayColoredShape(l, update=True, color="WHITE")
 
-    save_to_stl(letters)
+    save_to_stl(letters, output_dir)
 
     start_display()
 
@@ -80,6 +88,8 @@ def main(word1, word2):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Combine words into Two-Faced Type, and output as STLs")
     parser.add_argument('words', metavar='word', type=str, nargs=2, help='the words to combine')
+    parser.add_argument('-o', '--output_dir', metavar='output_directory', type=str, help="The directory to write STL files to. Will be created if it doesn't exist", required=True)
     args = parser.parse_args()
+    print(args)
 
-    main(args.words[0], args.words[1])
+    main(args.words[0], args.words[1], args.output_dir)
