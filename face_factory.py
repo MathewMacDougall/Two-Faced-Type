@@ -29,7 +29,8 @@ class FaceFactory():
     @classmethod
     def create_from_image(cls, filepath):
         assert isinstance(filepath, Path)
-        assert filepath.exists() and filepath.is_file()
+        if not filepath.is_file():
+            raise IOError("Unable to create Face from image file: {}. File does not exist".format(filepath))
 
         # Combining wires didn't work as expected. It left some "pixels" with
         # weird artifacts and wouldn't quite create a contiguous face (some triangles
@@ -52,9 +53,17 @@ class FaceFactory():
         return fused
 
     @classmethod
-    def create_letter(cls, char):
-        assert char.isalpha()
+    def create_char(cls, char):
+        if not char.isalpha():
+            raise ValueError("Unable to create face from char. Only alphanumeric characters are supported")
+
         char = char.upper()
+
+        face_images_dir = Path(__file__).parent / "face_images"
+        assert face_images_dir.is_dir()
+        char_image_file = face_images_dir / "{}.png".format(char)
+        assert char_image_file.is_file()
+        return cls.create_from_image(char_image_file)
 
         if char == 'A':
             return cls._create_letter_A()

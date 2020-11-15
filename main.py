@@ -31,8 +31,8 @@ def combine_words(word1, word2):
 
     combined_faces = []
     for letter1, letter2 in zip(word1, word2):
-        face1 = FaceFactory.create_letter(letter1)
-        face2 = FaceFactory.create_letter(letter2)
+        face1 = FaceFactory.create_char(letter1)
+        face2 = FaceFactory.create_char(letter2)
         combined_letter = combine_faces(face1, face2)
         combined_faces.append(combined_letter)
 
@@ -66,9 +66,9 @@ def save_to_stl(shapes, dirpath="/home/mathew/"):
 def main(word1, word2, output_dir):
     display, start_display, add_menu, add_function_to_menu = init_display()
 
-    face1 = FaceFactory.create_from_image(Path("/home/mathew/letter_A.png"))
-    face2 = FaceFactory.create_from_image(Path("/home/mathew/letter_H.png"))
-    letters = [combine_faces(face1, face2)]
+    # face1 = FaceFactory.create_from_image(Path("/home/mathew/letter_A.png"))
+    # face2 = FaceFactory.create_from_image(Path("/home/mathew/letter_H.png"))
+    # letters = [combine_faces(face1, face2)]
 
 
     # face = FaceFactory.create_from_image(Path("/home/mathew/testimage.png"))
@@ -83,7 +83,7 @@ def main(word1, word2, output_dir):
     display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
     display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
 
-    # letters = combine_words(word1, word2)
+    letters = combine_words(word1, word2)
 
     for l in letters:
         display.DisplayColoredShape(l, update=True, color="WHITE")
