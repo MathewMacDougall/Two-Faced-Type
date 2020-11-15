@@ -1,11 +1,7 @@
 from OCC.Display.SimpleGui import init_display
-from OCC.Core.BRepPrimAPI import BRepPrimAPI_MakeBox
-from OCC.Core.BRepBuilderAPI import *
-from OCC.Core.gp import gp_Lin2d, gp_Pnt2d, gp_Dir2d, gp_Circ2d, gp_Ax22d, gp_Ax3
 from OCC.Core.gp import *
-from OCC.Extend.ShapeFactory import make_edge2d
 from OCC.Extend.ShapeFactory import *
-from OCC.Core.BRepFeat import BRepFeat_MakeLinearForm
+from face_factory import FaceFactory
 
 display, start_display, add_menu, add_function_to_menu = init_display()
 
@@ -23,36 +19,12 @@ display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
 AX_XZ = gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(0, 1, 0), gp_Dir(0, 0, 1))
 AX_YZ = gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(1, 0, 0), gp_Dir(0, 0, 1))
 
-def face_t(ax):
-    poly = BRepBuilderAPI_MakePolygon()
-    foo = None
-    if ax.IsCoplanar(AX_XZ, 0.01, 0.01):
-        foo = lambda a, b: gp_Pnt(a, 0, b)
-    elif ax.IsCoplanar(AX_XZ, 0.01, 0.01):
-        foo = lambda a, b: gp_Pnt(0, a, b)
-    else:
-        raise RuntimeError("Unexepcted Axis")
 
-    vertices = [
-        (0, 10),
-        (10, 10),
-        (10, 8.5),
-        (5.5, 8.5),
-        (5.5, 0),
-        (4.5, 0),
-        (4.5, 8.5),
-        (0, 8.5),
-    ]
-    for a, b in vertices:
-        poly.Add(foo(a, b))
-    poly.Close()
 
-    return make_face(poly.Wire())
-
-ci1 = gp_Circ(AX_XZ, 5)
-display.DisplayColoredShape(make_edge(ci1), update=True, color="GREEN" )
-ci2 = gp_Circ(AX_YZ, 5)
-display.DisplayColoredShape(make_edge(ci2), update=True, color="WHITE" )
+# ci1 = gp_Circ(AX_XZ, 5)
+# display.DisplayColoredShape(make_edge(ci1), update=True, color="GREEN" )
+# ci2 = gp_Circ(AX_YZ, 5)
+# display.DisplayColoredShape(make_edge(ci2), update=True, color="WHITE" )
 
 #test = gp_Pnt2d(AX_XZ, 0, 2)
 
@@ -61,7 +33,11 @@ display.DisplayColoredShape(make_edge(ci2), update=True, color="WHITE" )
 #
 # ext = make_extrusion(face, 100, gp_Vec(1, 0, 0))
 # display.DisplayColoredShape(ext, update=True, color="WHITE" )
-face = face_t(AX_XZ)
-display.DisplayColoredShape(face, update=True, color="WHITE")
+T = FaceFactory.create_letter_T(AX_XZ)
+display.DisplayColoredShape(T, update=True, color="WHITE")
+# I = FaceFactory.create_letter_I(AX_YZ)
+# display.DisplayColoredShape(I, update=True, color="GREEN")
+V = FaceFactory.create_letter_V(AX_YZ)
+display.DisplayColoredShape(V, update=True, color="GREEN")
 
 start_display()
