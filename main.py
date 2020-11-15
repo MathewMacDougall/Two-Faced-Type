@@ -6,6 +6,7 @@ from OCC.Core.gp import *
 from constants import *
 import math
 from OCC.Core.StlAPI import StlAPI_Writer
+import argparse
 
 def combine_faces(face1, face2):
     # assuming both faces start in the XZ plane
@@ -54,17 +55,13 @@ def save_to_stl(shapes, dirpath="/home/mathew/", name="test"):
         stl_writer.Write(shape, str(filepath))
 
 
-def main():
+def main(word1, word2):
     display, start_display, add_menu, add_function_to_menu = init_display()
 
     # face = FaceFactory.create_letter('C')
     # display.DisplayShape(face, update=True, color="BLUE")
     # start_display()
     # return
-
-    # Read keyboard input
-    word1 = 'IE'
-    word2 = 'FT'
 
     display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
     display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
@@ -79,8 +76,10 @@ def main():
 
     start_display()
 
-    # TODO: output to STL
-
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description="Combine words into Two-Faced Type, and output as STLs")
+    parser.add_argument('words', metavar='word', type=str, nargs=2, help='the words to combine')
+    args = parser.parse_args()
+
+    main(args.words[0], args.words[1])
