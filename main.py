@@ -5,6 +5,7 @@ from OCC.Core.BRepAlgoAPI import *
 from OCC.Core.gp import *
 from constants import *
 import math
+from OCC.Core.StlAPI import StlAPI_Writer
 
 def combine_faces(face1, face2):
     # assuming both faces start in the XZ plane
@@ -41,6 +42,18 @@ def combine_words(word1, word2):
 
     return offset_letters
 
+def save_to_stl(shapes, dirpath="/home/mathew/", name="test"):
+    from pathlib import Path
+    assert isinstance(shapes, list)
+    assert Path(dirpath).is_dir()
+
+    stl_writer = StlAPI_Writer()
+    stl_writer.SetASCIIMode(True)
+    for index, shape in enumerate(shapes):
+        filepath = Path(dirpath, name + str(index + 1) + ".stl")
+        stl_writer.Write(shape, str(filepath))
+
+
 def main():
     display, start_display, add_menu, add_function_to_menu = init_display()
 
@@ -61,6 +74,8 @@ def main():
 
     for l in letters:
         display.DisplayColoredShape(l, update=True, color="WHITE")
+
+    save_to_stl(letters)
 
     start_display()
 
