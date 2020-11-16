@@ -43,19 +43,24 @@ class FaceFactory():
         # would be missing from pixels).
         # Combining faces seems to work much better, and even allows for non-contiguous
         # shapes (although this won't look good in the final product)
-
+        from time import time
         im_frame = Image.open(filepath)
         np_frame = np.array(im_frame)
         pixel_size = height_mm / np_frame.shape[0]
         faces = []
+        make_faces_start = time()
         for z, row in enumerate(reversed(np_frame)):
             for x, col in enumerate(row):
                 if col[0] < 1:
                     # fill in the pixel
                     faces.append(make_face(cls.make_rect((x, z), pixel_size)))
-
+        make_faces_end = time()
+        print("Making faces took {} seconds".format(make_faces_end - make_faces_start))
+        fuse_start = time()
         fuse_faces = lambda f1, f2: BRepAlgoAPI_Fuse(f1, f2).Shape()
         fused = reduce(fuse_faces, faces, faces[0])
+        fuse_end = time()
+        print("Fusing faces took {} seconds".format(fuse_end - fuse_start))
         return fused
 
     @classmethod
@@ -67,7 +72,14 @@ class FaceFactory():
 
         face_images_dir = Path(__file__).parent / "face_images"
 
+
+
         assert face_images_dir.is_dir()
-        char_image_file = face_images_dir / "{}.png".format(char)
+        if char == 'E':
+            char_image_file = face_images_dir / "E_small.png".format(char)
+        elif char == 'Z':
+            char_image_file = face_images_dir / "Z_small.png".format(char)
+        else:
+            char_image_file = face_images_dir / "{}.png".format(char)
         assert char_image_file.is_file()
         return cls.create_from_image(char_image_file, height_mm)

@@ -11,7 +11,26 @@ from pathlib import Path
 import os
 import errno
 
+from time import time
+from functools import wraps
 
+def timeit(func):
+    """
+    :param func: Decorated function
+    :return: Execution time for the decorated function
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time()
+        result = func(*args, **kwargs)
+        end = time()
+        print(f'{func.__name__} executed in {end - start:.4f} seconds')
+        return result
+
+    return wrapper
+
+@timeit
 def combine_faces(face1, face2, height_mm):
     # assuming both faces start in the XZ plane
 
@@ -22,12 +41,19 @@ def combine_faces(face1, face2, height_mm):
 
     # We assume characters are no wider than they are tall, but just in case
     # we extrude by twice the height to make sure to capture all features
+    t1 = time()
     face1_extruded = make_extrusion(face1, 2*height_mm, gp_Vec(0, 1, 0))
     face2_extruded = make_extrusion(face2, 2*height_mm, gp_Vec(1, 0, 0))
+    t2 = time()
+    print("Making extrusions took {} seconds".format(t2 - t1))
+    c1 = time()
     common = BRepAlgoAPI_Common(face1_extruded, face2_extruded)
+    c2 = time()
+    print("combining extrusions took {} seconds".format(c2 - c1))
 
     return common.Shape()
 
+@timeit
 def combine_words(word1, word2, height_mm):
     assert len(word1) == len(word2)
 
@@ -49,6 +75,7 @@ def combine_words(word1, word2, height_mm):
 
     return offset_letters
 
+@timeit
 def save_to_stl(shapes, dirpath="/home/mathew/"):
     assert isinstance(shapes, list)
 
