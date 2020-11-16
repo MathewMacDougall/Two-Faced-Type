@@ -1,12 +1,15 @@
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakePolygon, BRepBuilderAPI_MakeWire, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace
 from OCC.Core.gp import gp_Pnt
-from OCC.Extend.ShapeFactory import make_face
+from OCC.Extend.ShapeFactory import make_face, make_edge
 from PIL import Image
 import numpy as np
 from pathlib import Path
 from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Fuse
 from functools import reduce
-
+from svgpathtools import svg2paths, Line
+import logging
+logging.getLogger("PIL").setLevel(logging.WARNING)
+from constants import PL_XZ
 
 class FaceFactory():
     @classmethod
@@ -33,7 +36,78 @@ class FaceFactory():
         return poly.Wire()
 
     @classmethod
+    def _get_contiguous_paths(cls, lines):
+        assert len(lines) > 0
+        paths = [[]]
+        index = 0
+        for line in lines:
+            print(line)
+            if not paths[index] or line.start == paths[index][-1].end:
+                paths[index].append(line)
+            else:
+                paths.append([])
+                index += 1
+                paths[index].append(line)
+        return paths
+
+    @classmethod
+    def _svg_lines_to_wire(cls, lines):
+        wireMaker = BRepBuilderAPI_MakeWire()
+        create_gp_pnt = cls._get_create_gp_pnt_func()
+        for line in lines:
+            assert isinstance(line, Line)
+            start = line.start
+            end = line.end
+            p1 = create_gp_pnt((start.real, start.imag))
+            p2 = create_gp_pnt((end.real, end.imag))
+            wireMaker.Add(make_edge(p1, p2))
+        return wireMaker.Wire()
+
+    @classmethod
     def create_from_image(cls, filepath, height_mm):
+        assert isinstance(filepath, Path)
+        if not filepath.is_file():
+            raise IOError("Unable to create Face from image file: {}. File does not exist".format(filepath))
+
+        if filepath.suffix == "svg":
+            return cls._create_from_svg(filepath, height_mm)
+        elif filepath.suffix == "png":
+            # TODO: this probably can handle JPG too?
+            return cls.create_from_png(filepath, height_mm)
+        else:
+            raise RuntimeError("Unable to create Face from image file: {}. Unsupported filetype {}. Please use one of {}".format(filepath, filepath.suffix, "svg, png"))
+
+    @classmethod
+    def _create_from_svg(cls, filepath, height_mm):
+        assert isinstance(filepath, Path)
+        if not filepath.is_file():
+            raise IOError("Unable to create Face from image file: {}. File does not exist".format(filepath))
+
+        # Find all sets of contiguous lines (assuming they are in order)
+        # Create wires/faces for each?
+        # Take the largest face, make primary
+        # for all other faces, check if they are inside
+        #   if yes, make hole
+
+        paths, attributes = svg2paths(str(filepath))
+        faceMaker = BRepBuilderAPI_MakeFace(PL_XZ)
+        func = cls._get_create_gp_pnt_func()
+        continuous_paths = []
+        for path in paths:
+            continuous_paths += cls._get_contiguous_paths(path)
+        for cp in continuous_paths:
+            # print("cp")
+            # print(cp)
+            w1 = cls._svg_lines_to_wire(cp)
+            w1.Reverse()
+            faceMaker = BRepBuilderAPI_MakeFace(faceMaker.Shape(), w1)
+            # w2 = lines_to_wire_maker(cp2).Wire()
+            # w2.Reverse()
+        return faceMaker.Shape()
+
+
+    @classmethod
+    def create_from_png(cls, filepath, height_mm):
         assert isinstance(filepath, Path)
         if not filepath.is_file():
             raise IOError("Unable to create Face from image file: {}. File does not exist".format(filepath))
@@ -82,4 +156,4 @@ class FaceFactory():
         else:
             char_image_file = face_images_dir / "{}.png".format(char)
         assert char_image_file.is_file()
-        return cls.create_from_image(char_image_file, height_mm)
+        return cls.create_from_png(char_image_file, height_mm)

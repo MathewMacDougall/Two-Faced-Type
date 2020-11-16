@@ -99,7 +99,13 @@ def main(word1, word2, height_mm, output_dir):
     # face2 = FaceFactory.create_from_image(Path("/home/mathew/letter_H.png"))
     # letters = [combine_faces(face1, face2)]
 
+    hmm = 500000
+    face1 = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_A.svg", hmm)
+    face2 = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_A.svg", hmm)
+    letters = [combine_faces(face1, face2, hmm)]
 
+
+    # face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_A.svg", height_mm=50)
     # face = FaceFactory.create_from_image(Path("/home/mathew/testimage.png"))
     # # face = FaceFactory.create_letter('C')
     # display.DisplayShape(face, update=True, color="BLUE")
@@ -112,7 +118,7 @@ def main(word1, word2, height_mm, output_dir):
     display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
     display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
 
-    letters = combine_words(word1, word2, height_mm)
+    # letters = combine_words(word1, word2, height_mm)
 
     for l in letters:
         display.DisplayColoredShape(l, update=True, color="WHITE")
