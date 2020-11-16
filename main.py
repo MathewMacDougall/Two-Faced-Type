@@ -12,7 +12,7 @@ import os
 import errno
 
 
-def combine_faces(face1, face2):
+def combine_faces(face1, face2, height_mm):
     # assuming both faces start in the XZ plane
 
     tf = gp_Trsf()
@@ -20,21 +20,22 @@ def combine_faces(face1, face2):
     tf.SetRotation(gp_Ax1(ORIGIN, DIR_Z), math.pi / 2)
     face2 = BRepBuilderAPI_Transform(face2, tf).Shape()
 
-    # TODO: extrude proporional to pixels and pixel size
-    face1_extruded = make_extrusion(face1, 100*10, gp_Vec(0, 1, 0))
-    face2_extruded = make_extrusion(face2, 100*10, gp_Vec(1, 0, 0))
+    # We assume characters are no wider than they are tall, but just in case
+    # we extrude by twice the height to make sure to capture all features
+    face1_extruded = make_extrusion(face1, 2*height_mm, gp_Vec(0, 1, 0))
+    face2_extruded = make_extrusion(face2, 2*height_mm, gp_Vec(1, 0, 0))
     common = BRepAlgoAPI_Common(face1_extruded, face2_extruded)
 
     return common.Shape()
 
-def combine_words(word1, word2):
+def combine_words(word1, word2, height_mm):
     assert len(word1) == len(word2)
 
     combined_faces = []
     for letter1, letter2 in zip(word1, word2):
-        face1 = FaceFactory.create_char(letter1)
-        face2 = FaceFactory.create_char(letter2)
-        combined_letter = combine_faces(face1, face2)
+        face1 = FaceFactory.create_char(letter1, height_mm)
+        face2 = FaceFactory.create_char(letter2, height_mm)
+        combined_letter = combine_faces(face1, face2, height_mm)
         combined_faces.append(combined_letter)
 
     tf = gp_Trsf()
@@ -64,7 +65,7 @@ def save_to_stl(shapes, dirpath="/home/mathew/"):
         stl_writer.Write(shape, str(filepath))
 
 
-def main(word1, word2, output_dir):
+def main(word1, word2, height_mm, output_dir):
     display, start_display, add_menu, add_function_to_menu = init_display()
 
     # face1 = FaceFactory.create_from_image(Path("/home/mathew/letter_A.png"))
@@ -84,7 +85,7 @@ def main(word1, word2, output_dir):
     display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
     display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
 
-    letters = combine_words(word1, word2)
+    letters = combine_words(word1, word2, height_mm)
 
     for l in letters:
         display.DisplayColoredShape(l, update=True, color="WHITE")
@@ -98,7 +99,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Combine words into Two-Faced Type, and output as STLs")
     parser.add_argument('words', metavar='word', type=str, nargs=2, help='the words to combine')
     parser.add_argument('-o', '--output_dir', metavar='output_directory', type=str, help="The directory to write STL files to. Will be created if it doesn't exist", required=True)
+    parser.add_argument('--height', metavar='height_mm', type=float, help="The height of the characters, in mm", required=True)
     args = parser.parse_args()
     print(args)
 
-    main(args.words[0], args.words[1], args.output_dir)
+    main(args.words[0], args.words[1], args.height, args.output_dir)

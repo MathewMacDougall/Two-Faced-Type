@@ -10,6 +10,12 @@ from functools import reduce
 
 class FaceFactory():
     @classmethod
+    def _get_create_gp_pnt_func(cls):
+        # for now assume everything is in the XZ plane. We can rotate one
+        # of the faces when we go to combine them
+        return lambda x: gp_Pnt(x[0], 0, x[1])
+
+    @classmethod
     def make_rect(cls, coord, size):
         assert size > 0
 
@@ -27,7 +33,7 @@ class FaceFactory():
         return poly.Wire()
 
     @classmethod
-    def create_from_image(cls, filepath):
+    def create_from_image(cls, filepath, height_mm):
         assert isinstance(filepath, Path)
         if not filepath.is_file():
             raise IOError("Unable to create Face from image file: {}. File does not exist".format(filepath))
@@ -40,7 +46,7 @@ class FaceFactory():
 
         im_frame = Image.open(filepath)
         np_frame = np.array(im_frame)
-        pixel_size = 10
+        pixel_size = height_mm / np_frame.shape[0]
         faces = []
         for z, row in enumerate(reversed(np_frame)):
             for x, col in enumerate(row):
@@ -53,361 +59,15 @@ class FaceFactory():
         return fused
 
     @classmethod
-    def create_char(cls, char):
+    def create_char(cls, char, height_mm):
         if not char.isalpha():
             raise ValueError("Unable to create face from char. Only alphanumeric characters are supported")
 
         char = char.upper()
 
         face_images_dir = Path(__file__).parent / "face_images"
+
         assert face_images_dir.is_dir()
         char_image_file = face_images_dir / "{}.png".format(char)
         assert char_image_file.is_file()
-        return cls.create_from_image(char_image_file)
-
-        if char == 'A':
-            return cls._create_letter_A()
-        elif char == 'B':
-            return cls._create_letter_B()
-        elif char == 'C':
-            return cls._create_letter_C()
-        elif char == 'D':
-            return cls._create_letter_D()
-        elif char == 'E':
-            return cls._create_letter_E()
-        elif char == 'F':
-            return cls._create_letter_F()
-        elif char == 'G':
-            return cls._create_letter_G()
-        elif char == 'H':
-            return cls._create_letter_H()
-        elif char == 'I':
-            return cls._create_letter_I()
-        elif char == 'J':
-            return cls._create_letter_J()
-        elif char == 'K':
-            return cls._create_letter_K()
-        elif char == 'L':
-            return cls._create_letter_L()
-        elif char == 'M':
-            return cls._create_letter_M()
-        elif char == 'N':
-            return cls._create_letter_N()
-        elif char == 'O':
-            return cls._create_letter_O()
-        elif char == 'P':
-            return cls._create_letter_P()
-        elif char == 'Q':
-            return cls._create_letter_Q()
-        elif char == 'R':
-            return cls._create_letter_R()
-        elif char == 'S':
-            return cls._create_letter_S()
-        elif char == 'T':
-            return cls._create_letter_T()
-        elif char == 'U':
-            return cls._create_letter_U()
-        elif char == 'V':
-            return cls._create_letter_V()
-        elif char == 'W':
-            return cls._create_letter_W()
-        elif char == 'X':
-            return cls._create_letter_X()
-        elif char == 'Y':
-            return cls._create_letter_Y()
-        elif char == 'Z':
-            return cls._create_letter_Z()
-        elif char == '0':
-            return cls._create_digit_0()
-        elif char == '1':
-            return cls._create_digit_1()
-        elif char == '2':
-            return cls._create_digit_2()
-        elif char == '3':
-            return cls._create_digit_3()
-        elif char == '4':
-            return cls._create_digit_4()
-        elif char == '5':
-            return cls._create_digit_5()
-        elif char == '6':
-            return cls._create_digit_6()
-        elif char == '7':
-            return cls._create_digit_7()
-        elif char == '8':
-            return cls._create_digit_8()
-        elif char == '9':
-            return cls._create_digit_9()
-        else:
-            raise RuntimeError("Unsupported character")
-
-    @classmethod
-    def _get_create_gp_pnt_func(cls):
-        # for now assume everything is in the XZ plane. We can rotate one
-        # of the faces when we go to combine them
-        return lambda x: gp_Pnt(x[0], 0, x[1])
-
-    @classmethod
-    def _create_letter_A(cls):
-        pass
-
-    @classmethod
-    def _create_letter_B(cls):
-        pass
-
-    @classmethod
-    def _create_letter_C(cls):
-        poly = BRepBuilderAPI_MakePolygon()
-        vertices = [
-            (0, 10),
-            (10, 10),
-            (10, 8.5),
-            (1.5, 8.5),
-            (1.5, 1.5),
-            (10, 1.5),
-            (10, 0),
-            (0, 0),
-        ]
-        create_gp_pnt = cls._get_create_gp_pnt_func()
-        for v in vertices:
-            poly.Add(create_gp_pnt(v))
-        poly.Close()
-        return make_face(poly.Wire())
-
-    @classmethod
-    def _create_letter_D(cls):
-        pass
-
-    @classmethod
-    def _create_letter_E(cls):
-        poly = BRepBuilderAPI_MakePolygon()
-        vertices = [
-            (0, 10),
-            (10, 10),
-            (10, 8.5),
-            (1.5, 8.5),
-            (1.5, 5.75),
-            (8, 5.75),
-            (8, 4.25),
-            (1.5, 4.25),
-            (1.5, 1.5),
-            (10, 1.5),
-            (10, 0),
-            (0, 0),
-        ]
-        create_gp_pnt = cls._get_create_gp_pnt_func()
-        for v in vertices:
-            poly.Add(create_gp_pnt(v))
-        poly.Close()
-        return make_face(poly.Wire())
-
-    @classmethod
-    def _create_letter_F(cls):
-        poly = BRepBuilderAPI_MakePolygon()
-        vertices = [
-            (0, 10),
-            (10, 10),
-            (10, 8.5),
-            (1.5, 8.5),
-            (1.5, 5.75),
-            (8, 5.75),
-            (8, 4.25),
-            (1.5, 4.25),
-            (1.5, 0),
-            (0, 0),
-        ]
-        create_gp_pnt = cls._get_create_gp_pnt_func()
-        for v in vertices:
-            poly.Add(create_gp_pnt(v))
-        poly.Close()
-        return make_face(poly.Wire())
-
-    @classmethod
-    def _create_letter_G(cls):
-        pass
-
-    @classmethod
-    def _create_letter_H(cls):
-        pass
-
-    @classmethod
-    def _create_letter_I(cls):
-        poly = BRepBuilderAPI_MakePolygon()
-        vertices = [
-            (0, 10),
-            (10, 10),
-            (10, 8.5),
-            (5.5, 8.5),
-            (5.5, 1.5),
-            (10, 1.5),
-            (10, 0),
-            (0, 0),
-            (0, 1.5),
-            (4.5, 1.5),
-            (4.5, 8.5),
-            (0, 8.5),
-        ]
-        create_gp_pnt = cls._get_create_gp_pnt_func()
-        for v in vertices:
-            poly.Add(create_gp_pnt(v))
-        poly.Close()
-
-        return make_face(poly.Wire())
-
-    @classmethod
-    def _create_letter_J(cls):
-        pass
-
-    @classmethod
-    def _create_letter_K(cls):
-        pass
-
-    @classmethod
-    def _create_letter_L(cls):
-        pass
-
-    @classmethod
-    def _create_letter_M(cls):
-        pass
-
-    @classmethod
-    def _create_letter_N(cls):
-        pass
-
-    @classmethod
-    def _create_letter_O(cls):
-        pass
-
-    @classmethod
-    def _create_letter_P(cls):
-        pass
-
-    @classmethod
-    def _create_letter_Q(cls):
-        pass
-
-    @classmethod
-    def _create_letter_R(cls):
-        pass
-
-    @classmethod
-    def _create_letter_S(cls):
-        poly = BRepBuilderAPI_MakePolygon()
-        vertices = [
-            (0, 10),
-            (10, 10),
-            (10, 8.5),
-            (1.5, 8.5),
-            (1.5, 6),
-            (10, 6),
-            (10, 0),
-            (0, 0),
-            (0, 1.5),
-            (8.5, 1.5),
-            (8.5, 4.5),
-            (0, 4.5),
-        ]
-        create_gp_pnt = cls._get_create_gp_pnt_func()
-        for v in vertices:
-            poly.Add(create_gp_pnt(v))
-        poly.Close()
-
-        return make_face(poly.Wire())
-
-    @classmethod
-    def _create_letter_T(cls):
-        poly = BRepBuilderAPI_MakePolygon()
-        vertices = [
-            (0, 10),
-            (10, 10),
-            (10, 8.5),
-            (5.5, 8.5),
-            (5.5, 0),
-            (4.5, 0),
-            (4.5, 8.5),
-            (0, 8.5),
-        ]
-        create_gp_pnt = cls._get_create_gp_pnt_func()
-        for v in vertices:
-            poly.Add(create_gp_pnt(v))
-        poly.Close()
-
-        return make_face(poly.Wire())
-
-    @classmethod
-    def _create_letter_U(cls):
-        pass
-
-    @classmethod
-    def _create_letter_V(cls):
-        poly = BRepBuilderAPI_MakePolygon()
-        vertices = [
-            (0, 10),
-            (1, 10),
-            (5, 1),
-            (9, 10),
-            (10, 10),
-            (5.75, 0),
-            (4.25, 0),
-        ]
-        create_gp_pnt = cls._get_create_gp_pnt_func()
-        for v in vertices:
-            poly.Add(create_gp_pnt(v))
-        poly.Close()
-
-        return make_face(poly.Wire())
-
-    @classmethod
-    def _create_letter_W(cls):
-        pass
-
-    @classmethod
-    def _create_letter_X(cls):
-        pass
-
-    @classmethod
-    def _create_letter_Y(cls):
-        pass
-
-    @classmethod
-    def _create_letter_Z(cls):
-        pass
-
-    @classmethod
-    def _create_digit_0(cls):
-        pass
-
-    @classmethod
-    def _create_digit_1(cls):
-        pass
-
-    @classmethod
-    def _create_digit_2(cls):
-        pass
-
-    @classmethod
-    def _create_digit_3(cls):
-        pass
-
-    @classmethod
-    def _create_digit_4(cls):
-        pass
-
-    @classmethod
-    def _create_digit_5(cls):
-        pass
-
-    @classmethod
-    def _create_digit_6(cls):
-        pass
-
-    @classmethod
-    def _create_digit_7(cls):
-        pass
-
-    @classmethod
-    def _create_digit_8(cls):
-        pass
-
-    @classmethod
-    def _create_digit_9(cls):
-        pass
+        return cls.create_from_image(char_image_file, height_mm)
