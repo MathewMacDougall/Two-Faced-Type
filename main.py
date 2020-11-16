@@ -20,8 +20,9 @@ def combine_faces(face1, face2):
     tf.SetRotation(gp_Ax1(ORIGIN, DIR_Z), math.pi / 2)
     face2 = BRepBuilderAPI_Transform(face2, tf).Shape()
 
-    face1_extruded = make_extrusion(face1, 100, gp_Vec(0, 1, 0))
-    face2_extruded = make_extrusion(face2, 100, gp_Vec(1, 0, 0))
+    # TODO: extrude proporional to pixels and pixel size
+    face1_extruded = make_extrusion(face1, 100*10, gp_Vec(0, 1, 0))
+    face2_extruded = make_extrusion(face2, 100*10, gp_Vec(1, 0, 0))
     common = BRepAlgoAPI_Common(face1_extruded, face2_extruded)
 
     return common.Shape()
