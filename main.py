@@ -99,20 +99,24 @@ def main(word1, word2, height_mm, output_dir):
     # face2 = FaceFactory.create_from_image(Path("/home/mathew/letter_H.png"))
     # letters = [combine_faces(face1, face2)]
 
-    hmm = 500000
-    face1 = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_A.svg", hmm)
-    face2 = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_A.svg", hmm)
-    letters = [combine_faces(face1, face2, hmm)]
+    # hmm = 500
+    # face1 = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_A.svg", hmm)
+    # face2 = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_R.svg", hmm)
+    # letters = [combine_faces(face1, face2, hmm)]
 
 
-    # face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_A.svg", height_mm=50)
+    face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_A.svg", height_mm=50)
     # face = FaceFactory.create_from_image(Path("/home/mathew/testimage.png"))
     # # face = FaceFactory.create_letter('C')
-    # display.DisplayShape(face, update=True, color="BLUE")
+    display.DisplayShape(face, update=True, color="BLUE")
     # face_extruded = make_extrusion(face, 10, gp_Vec(0, 1, 0))
     # display.DisplayShape(face_extruded, update=True, color="BLUE")
-    # start_display()
-    # return
+
+    display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
+    display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
+    display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
+    start_display()
+    return
 
     display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
     display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
