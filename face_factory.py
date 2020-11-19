@@ -162,16 +162,23 @@ class FaceFactory():
         mirror.SetMirror(gp_OX())
         mirrored_face = BRepBuilderAPI_Transform(face, mirror, True).Shape()
 
+        # scale to the desired height
+        mirrored_face_explorer = TopologyExplorer(mirrored_face)
+        current_height = max([BRep_Tool.Pnt(vertex).Z() for vertex in mirrored_face_explorer.vertices()]) - min([BRep_Tool.Pnt(vertex).Z() for vertex in mirrored_face_explorer.vertices()])
+        scaling_factor = height_mm / current_height
+        scaling = gp_Trsf()
+        scaling.SetScaleFactor(scaling_factor)
+        scaled_face = BRepBuilderAPI_Transform(mirrored_face, scaling, True).Shape()
+
         # Align the face to the x-axis (so it's not floating)
         # and the z-axis (technically not needed, but keeps the location of the
         # combined shape more controlled near the origin)
-        te = TopologyExplorer(mirrored_face)
-        smallest_z = min([BRep_Tool.Pnt(vertex).Z() for vertex in te.vertices()])
-        smallest_x = min([BRep_Tool.Pnt(vertex).X() for vertex in te.vertices()])
-
+        scaled_face_explorer = TopologyExplorer(scaled_face)
+        smallest_z = min([BRep_Tool.Pnt(vertex).Z() for vertex in scaled_face_explorer.vertices()])
+        smallest_x = min([BRep_Tool.Pnt(vertex).X() for vertex in scaled_face_explorer.vertices()])
         translation = gp_Trsf()
         translation.SetTranslation(gp_Vec(gp_XYZ(-smallest_x, 0, -smallest_z)))
-        translated_face = BRepBuilderAPI_Transform(mirrored_face, translation, True).Shape()
+        translated_face = BRepBuilderAPI_Transform(scaled_face, translation, True).Shape()
 
         return translated_face
 
