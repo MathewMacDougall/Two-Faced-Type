@@ -1,11 +1,13 @@
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakePolygon, BRepBuilderAPI_MakeWire, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_Transform
-from OCC.Core.gp import gp_Pnt, gp_Trsf, gp_OX
+from OCC.Core.gp import gp_Pnt, gp_Trsf, gp_OX, gp_Vec, gp_XYZ
 from OCC.Extend.ShapeFactory import make_face, make_edge
+from OCC.Core.BRep import BRep_Tool
 from PIL import Image
 import numpy as np
 from pathlib import Path
 from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Fuse
 from functools import reduce
+from OCC.Extend.TopologyUtils import TopologyExplorer
 from svgpathtools import svg2paths, Line
 import logging
 logging.getLogger("PIL").setLevel(logging.WARNING)
@@ -154,10 +156,24 @@ class FaceFactory():
                 sub_wire.Reverse()
                 faceMaker.Add(sub_wire)
         face = faceMaker.Shape()
+
+        # mirror over the x-axis to make the face right-side up
         mirror = gp_Trsf()
         mirror.SetMirror(gp_OX())
         mirrored_face = BRepBuilderAPI_Transform(face, mirror, True).Shape()
-        return mirrored_face
+
+        # Align the face to the x-axis (so it's not floating)
+        # and the z-axis (technically not needed, but keeps the location of the
+        # combined shape more controlled near the origin)
+        te = TopologyExplorer(mirrored_face)
+        smallest_z = min([BRep_Tool.Pnt(vertex).Z() for vertex in te.vertices()])
+        smallest_x = min([BRep_Tool.Pnt(vertex).X() for vertex in te.vertices()])
+
+        translation = gp_Trsf()
+        translation.SetTranslation(gp_Vec(gp_XYZ(-smallest_x, 0, -smallest_z)))
+        translated_face = BRepBuilderAPI_Transform(mirrored_face, translation, True).Shape()
+
+        return translated_face
 
 
     @classmethod
