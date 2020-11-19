@@ -1,5 +1,5 @@
-from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakePolygon, BRepBuilderAPI_MakeWire, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace
-from OCC.Core.gp import gp_Pnt
+from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakePolygon, BRepBuilderAPI_MakeWire, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_Transform
+from OCC.Core.gp import gp_Pnt, gp_Trsf, gp_OX
 from OCC.Extend.ShapeFactory import make_face, make_edge
 from PIL import Image
 import numpy as np
@@ -153,7 +153,11 @@ class FaceFactory():
                 sub_wire = sub_wire_maker.Wire()
                 sub_wire.Reverse()
                 faceMaker.Add(sub_wire)
-        return faceMaker.Shape()
+        face = faceMaker.Shape()
+        mirror = gp_Trsf()
+        mirror.SetMirror(gp_OX())
+        mirrored_face = BRepBuilderAPI_Transform(face, mirror, True).Shape()
+        return mirrored_face
 
 
     @classmethod
