@@ -105,7 +105,7 @@ def main(word1, word2, height_mm, output_dir):
     # letters = [combine_faces(face1, face2, hmm)]
 
 
-    face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_A.svg", height_mm=50)
+    face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_R.svg", height_mm=50)
     # face = FaceFactory.create_from_image(Path("/home/mathew/testimage.png"))
     # # face = FaceFactory.create_letter('C')
     display.DisplayShape(face, update=True, color="BLUE")
