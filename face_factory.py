@@ -235,9 +235,10 @@ class FaceFactory():
         continuous_paths = cls._normalize_lines_clockwise(paths)
         continuous_paths = cls._create_path_hierarchy(continuous_paths)
 
-
         # TODO: YOU ARE HERE
         # Got hierarchy (probably) working. Need to convert paths/lines to edges
+
+        from OCC.Core.Geom2d import Geom2d_BezierCurve
 
 
         faceMaker = BRepBuilderAPI_MakeFace(PL_XZ)
