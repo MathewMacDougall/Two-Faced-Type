@@ -106,44 +106,54 @@ def main(word1, word2, height_mm, output_dir):
     # letters = [combine_faces(face1, face2, hmm)]
 
 
-    # bezier curve testing
-    arr = TColgp_Array1OfPnt(0, 3)
-    arr.SetValue(0, gp_Pnt(0, 0, 0))
-    arr.SetValue(1, gp_Pnt(1, -5, 0))
-    arr.SetValue(2, gp_Pnt(4, 1, 0))
-    arr.SetValue(3, gp_Pnt(2, 2, 0))
-
-    for j in range(arr.Lower(), arr.Upper()+1):
-        p = arr.Value(j)
-        display.DisplayShape(p, update=False)
-
-    bez_curve_3d = Geom_BezierCurve(arr)
-
-    import OCC.Core.GeomConvert as g2dc
-    curve3d = g2dc.GeomConvert_CompCurveToBSplineCurve(bez_curve_3d).BSplineCurve()
-    display.DisplayShape(curve3d, update=True, color='BLUE')
-    from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire
-    edge = BRepBuilderAPI_MakeEdge(curve3d).Edge()
-
-    wire = BRepBuilderAPI_MakeWire(edge).Wire()
-    face = BRepBuilderAPI_MakeFace(wire).Face()
-
-    display.DisplayShape(edge, update=False)
-    display.DisplayShape(wire, update=True)
-    display.DisplayShape(face, update=True)
-    start_display()
-    return
+    # def _bezier_wire_from_pts(start, cp1, cp2, end):
+    #     arr = TColgp_Array1OfPnt(0, 3)
+    #     arr.SetValue(0, gp_Pnt(0, 0, 0))
+    #     arr.SetValue(1, gp_Pnt(1, -5, 0))
+    #     arr.SetValue(2, gp_Pnt(4, 1, 0))
+    #     arr.SetValue(3, gp_Pnt(2, 2, 0))
+    #
+    # # bezier curve testing
+    # arr = TColgp_Array1OfPnt(0, 3)
+    # arr.SetValue(0, gp_Pnt(0, 0, 0))
+    # arr.SetValue(1, gp_Pnt(1, -5, 0))
+    # arr.SetValue(2, gp_Pnt(4, 1, 0))
+    # arr.SetValue(3, gp_Pnt(2, 2, 0))
+    #
+    # for j in range(arr.Lower(), arr.Upper()+1):
+    #     p = arr.Value(j)
+    #     display.DisplayShape(p, update=False)
+    #
+    # bez_curve_3d = Geom_BezierCurve(arr)
+    #
+    # import OCC.Core.GeomConvert as g2dc
+    # curve3d = g2dc.GeomConvert_CompCurveToBSplineCurve(bez_curve_3d).BSplineCurve()
+    # display.DisplayShape(curve3d, update=True, color='BLUE')
+    # import OCC.Core.GeomConvert as g2dc
+    # from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire
+    # edge = BRepBuilderAPI_MakeEdge(curve3d).Edge()
+    #
+    # wire = BRepBuilderAPI_MakeWire(edge).Wire()
+    # face = BRepBuilderAPI_MakeFace(wire).Face()
+    #
+    # display.DisplayShape(edge, update=False)
+    # display.DisplayShape(wire, update=True)
+    # display.DisplayShape(face, update=True)
+    # start_display()
+    # return
 
     # need to convert bezier curve to bspline to work with it?
 
     # wire = make_wire(bez_curve)
     # print(wire)
     # display.DisplayShape(wire, update=True, color="BLUE")
-    print(bez_curve)
-    return
+    # print(bez_curve)
+    # return
 
-    # face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_R.svg", height_mm=50)
-    face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_spline.svg", height_mm=50)
+    # face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_letter_A.svg", height_mm=50)
+    # face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_spline.svg", height_mm=50)
+    face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/S.svg", height_mm=50)
+    # face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/test_spline.svg", height_mm=50)
     # face = FaceFactory.create_from_image(Path("/home/mathew/testimage.png"))
     # # face = FaceFactory.create_letter('C')
     display.DisplayShape(face, update=True, color="BLUE")

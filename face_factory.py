@@ -1,5 +1,9 @@
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakePolygon, BRepBuilderAPI_MakeWire, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_Transform
+from OCC.Core.Geom import Geom_BezierCurve
+from OCC.Core.TColgp import TColgp_Array1OfPnt
 from OCC.Core.gp import gp_Pnt, gp_Trsf, gp_OX, gp_Vec, gp_XYZ
+import OCC.Core.GeomConvert as g2dc
+from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire
 from OCC.Extend.ShapeFactory import make_face, make_edge
 from OCC.Core.BRep import BRep_Tool
 from PIL import Image
@@ -59,17 +63,33 @@ class FaceFactory():
         return poly.Wire()
 
     @classmethod
-    def _get_contiguous_paths(cls, lines):
-        paths = [[]]
-        index = 0
-        for line in lines:
-            if not paths[index] or line.start == paths[index][-1].end:
-                paths[index].append(line)
-            else:
-                paths.append([])
-                index += 1
-                paths[index].append(line)
-        return paths
+    def _get_contiguous_paths(cls, paths):
+        contiguous_paths = []
+        for path in paths:
+            # TODO: this assumes the first element in each path is the "start" of some contiguous path
+            # ie. assumes the lines are defined in some order, with the lines for each distinct path being
+            # adjacent / contiguous. Is this guaranteed by the SVG format?
+            assert isinstance(path, Path)
+            current_path = [Path()] # hack to deep copy the value into contiguous_paths
+            for line in path:
+                if len(current_path[0]) == 0 or line.start == current_path[0].end:
+                    current_path[0].append(line)
+                else:
+                    # need to copy the element
+                    contiguous_paths = contiguous_paths + current_path
+                    current_path = [Path()]
+            contiguous_paths = contiguous_paths + current_path
+        return contiguous_paths
+
+
+        # for line in lines:
+        #     if not paths[index] or line.start == paths[index][-1].end:
+        #         paths[index].append(line)
+        #     else:
+        #         paths.append([])
+        #         index += 1
+        #         paths[index].append(line)
+        # return paths
 
     @classmethod
     def _path_is_clockwise(cls, path):
@@ -85,13 +105,31 @@ class FaceFactory():
         create_gp_pnt = cls._get_create_gp_pnt_func()
 
         for line in lines:
-            assert isinstance(line, Line)
-            start = line.start
-            end = line.end
-            p1 = create_gp_pnt((start.real, start.imag))
-            p2 = create_gp_pnt((end.real, end.imag))
-            wireMaker.Add(make_edge(p1, p2))
+            if isinstance(line, Line):
+                start = line.start
+                end = line.end
+                p1 = create_gp_pnt((start.real, start.imag))
+                p2 = create_gp_pnt((end.real, end.imag))
+                wireMaker.Add(make_edge(p1, p2))
+            elif isinstance(line, CubicBezier):
+                wireMaker.Add(cls._create_edge_from_bezier_pts(line.start, line.control1, line.control2, line.end))
+            else:
+                raise RuntimeError("Invalid line type")
+
         return wireMaker
+
+    @classmethod
+    def _create_edge_from_bezier_pts(cls, start, cp1, cp2, end):
+        create_gp_pnt = cls._get_create_gp_pnt_func()
+        arr = TColgp_Array1OfPnt(0, 3)
+        arr.SetValue(0, create_gp_pnt((start.real, start.imag)))
+        arr.SetValue(1, create_gp_pnt((cp1.real, cp1.imag)))
+        arr.SetValue(2, create_gp_pnt((cp2.real, cp2.imag)))
+        arr.SetValue(3, create_gp_pnt((end.real, end.imag)))
+        bcurve = Geom_BezierCurve(arr)
+        bspline = g2dc.GeomConvert_CompCurveToBSplineCurve(bcurve).BSplineCurve()
+        edge = BRepBuilderAPI_MakeEdge(bspline).Edge()
+        return edge
 
     @classmethod
     def create_from_image(cls, filepath, height_mm):
@@ -114,7 +152,7 @@ class FaceFactory():
         for path in paths:
             assert isinstance(path, Path)
             path_is_clockwise = cls._path_is_clockwise(path)
-            if not path_is_clockwise:
+            if path_is_clockwise:
                 return [path for path in paths]
             clockwise_path = Path()
             for line in reversed(path):
@@ -227,33 +265,40 @@ class FaceFactory():
             raise IOError("Unable to create Face from image file: {}. File does not exist".format(filepath))
 
         paths, attributes = svg2paths(str(filepath))
-        for path in paths:
-            print("type: {}     value: {}".format(type(path), path))
+        # for path in paths:
+        #     print("type: {}     value: {}".format(type(path), path))
 
         # TODO: is this needed? Are paths generally the single unit of continuity?
-        # continuous_paths = [cp for path in paths for cp in cls._get_contiguous_paths(path) ]
-        continuous_paths = cls._normalize_lines_clockwise(paths)
+        continuous_paths = [cp for cp in cls._get_contiguous_paths(paths) ]
+        continuous_paths = cls._normalize_lines_clockwise(continuous_paths)
         continuous_paths = cls._create_path_hierarchy(continuous_paths)
 
-        # TODO: YOU ARE HERE
-        # Got hierarchy (probably) working. Need to convert paths/lines to edges
-
-        from OCC.Core.Geom2d import Geom2d_BezierCurve
-
-
         faceMaker = BRepBuilderAPI_MakeFace(PL_XZ)
-        # Right now can only handle a single "main" face with holes
-        assert len(continuous_paths) < 2
-        for f in continuous_paths:
-            root_wire_maker = cls._create_wire_maker_from_lines(f[0])
+        for path_hierarchy in continuous_paths:
+            root_wire_maker = cls._create_wire_maker_from_lines(path_hierarchy.root_path())
             root_wire = root_wire_maker.Wire()
             faceMaker.Add(root_wire)
-            for sub_wires in f[1:]:
-                sub_wire_maker = cls._create_wire_maker_from_lines(sub_wires)
+            for sub_path in path_hierarchy.child_paths():
+                sub_wire_maker = cls._create_wire_maker_from_lines(sub_path)
                 sub_wire = sub_wire_maker.Wire()
                 sub_wire.Reverse()
                 faceMaker.Add(sub_wire)
         face = faceMaker.Shape()
+
+
+        # faceMaker = BRepBuilderAPI_MakeFace(PL_XZ)
+        # # Right now can only handle a single "main" face with holes
+        # assert len(continuous_paths) < 2
+        # for path_hierarchy in continuous_paths:
+        #     root_wire_maker = cls._create_wire_maker_from_lines(path_hierarchy[0])
+        #     root_wire = root_wire_maker.Wire()
+        #     faceMaker.Add(root_wire)
+        #     for sub_path in path_hierarchy[1:]:
+        #         sub_wire_maker = cls._create_wire_maker_from_lines(sub_path)
+        #         sub_wire = sub_wire_maker.Wire()
+        #         sub_wire.Reverse()
+        #         faceMaker.Add(sub_wire)
+        # face = faceMaker.Shape()
 
         # mirror over the x-axis to make the face right-side up
         mirror = gp_Trsf()
