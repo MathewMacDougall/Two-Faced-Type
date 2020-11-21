@@ -171,6 +171,9 @@ def main(word1, word2, height_mm, output_dir):
     display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
 
     # letters = combine_words(word1, word2, height_mm)
+    
+    # TODO: you are here. Got bezier curves working but really need to clean up code now
+    # ALso, useful site to make svg letters: https://maketext.io/
 
     for l in letters:
         display.DisplayColoredShape(l, update=True, color="WHITE")
