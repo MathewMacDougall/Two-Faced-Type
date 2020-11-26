@@ -1,14 +1,11 @@
-from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Transform
 from OCC.Core.Geom import Geom_BezierCurve
 from OCC.Core.TColgp import TColgp_Array1OfPnt
-from OCC.Core.gp import gp_Pnt, gp_Trsf, gp_OX, gp_Vec, gp_XYZ
+from OCC.Core.gp import gp_Pnt
 import OCC.Core.GeomConvert as g2dc
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire
 from OCC.Extend.ShapeFactory import make_edge
-from OCC.Core.BRep import BRep_Tool
 import pathlib
-from OCC.Extend.TopologyUtils import TopologyExplorer
-from svgpathtools import svg2paths, Line, CubicBezier, Path, QuadraticBezier, Document
+from svgpathtools import Line, CubicBezier, Path, QuadraticBezier, Document
 import logging
 from constants import PL_XZ
 from shapely.geometry import Point, Polygon
@@ -204,7 +201,7 @@ class FaceFactory():
     @classmethod
     def _create_edge_from_bezier_pts(cls, start, end, *control_pts):
         create_gp_pnt = cls._get_create_gp_pnt_func()
-        arr = TColgp_Array1OfPnt(0, 1+len(control_pts))
+        arr = TColgp_Array1OfPnt(0, 1 + len(control_pts))
         arr.SetValue(0, create_gp_pnt((start.real, start.imag)))
         index = 1
         for cp in control_pts:
