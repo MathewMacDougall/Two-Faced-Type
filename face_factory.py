@@ -116,10 +116,15 @@ class FaceFactory():
                 if len(current_path[0]) == 0 or line.start == current_path[0].end:
                     current_path[0].append(line)
                 else:
+                    # Need to make sure each path is a polygon with non-zero area
+                    assert len(current_path[0]) >= 3
                     # need to copy the element
                     contiguous_paths = contiguous_paths + current_path
                     current_path = [Path()]
+                    current_path[0].append(line)
             contiguous_paths = contiguous_paths + current_path
+
+        assert sum([len(cp) for cp in contiguous_paths]) == sum([len(p) for p in paths])
         return contiguous_paths
 
     @classmethod

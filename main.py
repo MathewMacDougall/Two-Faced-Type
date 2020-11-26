@@ -73,7 +73,7 @@ def save_to_stl(shapes, dirpath="/home/mathew/"):
 def main(word1, word2, height_mm, output_dir):
     display, start_display, add_menu, add_function_to_menu = init_display()
 
-    face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/S.svg", height_mm=50)
+    face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/A.svg", height_mm=50)
     display.DisplayShape(face, update=True, color="BLUE")
 
     display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
