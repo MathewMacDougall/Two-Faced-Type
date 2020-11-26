@@ -53,7 +53,7 @@ def combine_words(word1, word2, height_mm):
     return offset_letters
 
 
-def save_to_stl(shapes, dirpath="/home/mathew/"):
+def save_to_stl(shapes, dirpath=Path.home()):
     assert isinstance(shapes, list)
 
     try:
@@ -70,10 +70,13 @@ def save_to_stl(shapes, dirpath="/home/mathew/"):
 
 
 # Also, useful site to make svg letters: https://maketext.io/
+# My blessed documentation: https://old.opencascade.com/doc/occt-6.9.0/refman/html/class_geom2d___b_spline_curve.html#a521ec5263443aca0d5ec43cd3ed32ac6
 def main(word1, word2, height_mm, output_dir):
     display, start_display, add_menu, add_function_to_menu = init_display()
 
-    face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/A.svg", height_mm=50)
+    # face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/A.svg", height_mm=50)
+    face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/11.svg", height_mm=50) # has quadratic bezier
+    # face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/1.svg", height_mm=50)
     display.DisplayShape(face, update=True, color="BLUE")
 
     display.DisplayShape(make_edge(LINE_X), update=True, color="RED")

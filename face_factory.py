@@ -8,7 +8,7 @@ from OCC.Extend.ShapeFactory import make_edge
 from OCC.Core.BRep import BRep_Tool
 import pathlib
 from OCC.Extend.TopologyUtils import TopologyExplorer
-from svgpathtools import svg2paths, Line, CubicBezier, Path
+from svgpathtools import svg2paths, Line, CubicBezier, Path, QuadraticBezier
 import logging
 from constants import PL_XZ
 from shapely.geometry import Point, Polygon
@@ -54,6 +54,7 @@ class FaceFactory():
 
         paths, attributes = svg2paths(str(filepath))
 
+        paths = cls._remote_zero_length_lines(paths)
         continuous_paths = [cp for cp in cls._split_into_contiguous_paths(paths)]
         continuous_paths = cls._normalize_paths_clockwise(continuous_paths)
         continuous_paths = cls._create_path_hierarchy(continuous_paths)
@@ -101,6 +102,17 @@ class FaceFactory():
         # for now assume everything is in the XZ plane. We can rotate one
         # of the faces when we go to combine them
         return lambda x: gp_Pnt(x[0], 0, x[1])
+
+    @classmethod
+    def _remote_zero_length_lines(cls, paths):
+        new_paths = []
+        for path in paths:
+            pp = list(filter(lambda x: x.start != x.end, path))
+            newpath = Path()
+            for p in pp:
+                newpath.append(p)
+            new_paths.append(newpath)
+        return new_paths
 
     @classmethod
     def _split_into_contiguous_paths(cls, paths):
@@ -154,8 +166,16 @@ class FaceFactory():
                     line.control1 = new_control1
                     line.control2 = new_control2
                     clockwise_path.append(line)
+                elif isinstance(line, QuadraticBezier):
+                    new_start = line.end
+                    new_end = line.start
+                    new_control = line.control
+                    line.start = new_start
+                    line.end = new_end
+                    line.control = new_control
+                    clockwise_path.append(line)
                 else:
-                    raise RuntimeError("Invalid line type")
+                    raise RuntimeError("Invalid line type: {}".format(type(line)))
             normalized_paths.append(clockwise_path)
         return normalized_paths
 
@@ -223,20 +243,24 @@ class FaceFactory():
                 p2 = create_gp_pnt((end.real, end.imag))
                 wireMaker.Add(make_edge(p1, p2))
             elif isinstance(line, CubicBezier):
-                wireMaker.Add(cls._create_edge_from_bezier_pts(line.start, line.control1, line.control2, line.end))
+                wireMaker.Add(cls._create_edge_from_bezier_pts(line.start, line.end, line.control1, line.control2))
+            elif isinstance(line, QuadraticBezier):
+                wireMaker.Add(cls._create_edge_from_bezier_pts(line.start, line.end, line.control))
             else:
                 raise RuntimeError("Invalid line type")
 
         return wireMaker
 
     @classmethod
-    def _create_edge_from_bezier_pts(cls, start, cp1, cp2, end):
+    def _create_edge_from_bezier_pts(cls, start, end, *control_pts):
         create_gp_pnt = cls._get_create_gp_pnt_func()
-        arr = TColgp_Array1OfPnt(0, 3)
+        arr = TColgp_Array1OfPnt(0, 1+len(control_pts))
         arr.SetValue(0, create_gp_pnt((start.real, start.imag)))
-        arr.SetValue(1, create_gp_pnt((cp1.real, cp1.imag)))
-        arr.SetValue(2, create_gp_pnt((cp2.real, cp2.imag)))
-        arr.SetValue(3, create_gp_pnt((end.real, end.imag)))
+        index = 1
+        for cp in control_pts:
+            arr.SetValue(index, create_gp_pnt((cp.real, cp.imag)))
+            index += 1
+        arr.SetValue(index, create_gp_pnt((end.real, end.imag)))
         bcurve = Geom_BezierCurve(arr)
         bspline = g2dc.GeomConvert_CompCurveToBSplineCurve(bcurve).BSplineCurve()
         edge = BRepBuilderAPI_MakeEdge(bspline).Edge()
