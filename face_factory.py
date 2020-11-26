@@ -8,7 +8,7 @@ from OCC.Extend.ShapeFactory import make_edge
 from OCC.Core.BRep import BRep_Tool
 import pathlib
 from OCC.Extend.TopologyUtils import TopologyExplorer
-from svgpathtools import svg2paths, Line, CubicBezier, Path, QuadraticBezier
+from svgpathtools import svg2paths, Line, CubicBezier, Path, QuadraticBezier, Document
 import logging
 from constants import PL_XZ
 from shapely.geometry import Point, Polygon
@@ -52,8 +52,10 @@ class FaceFactory():
         if not filepath.is_file():
             raise IOError("Unable to create Face from image file: {}. File does not exist".format(filepath))
 
-        paths, attributes = svg2paths(str(filepath))
-
+        # Load as a document rather than as paths directly (using svg2paths) because
+        # the document respects any transforms
+        doc = Document(str(filepath))
+        paths = doc.paths()
         paths = cls._get_continuous_subpaths(paths)
         paths = cls._remote_zero_length_lines(paths)
         continuous_paths = cls._normalize_paths_clockwise(paths)
@@ -71,7 +73,8 @@ class FaceFactory():
                 faceMaker.Add(sub_wire)
         face = faceMaker.Shape()
 
-        # mirror over the x-axis to make the face right-side up
+        # mirror over the x-axis to make the face right-side up.
+        # Loading from the document makes everthing upside-down.
         mirror = gp_Trsf()
         mirror.SetMirror(gp_OX())
         mirrored_face = BRepBuilderAPI_Transform(face, mirror, True).Shape()
