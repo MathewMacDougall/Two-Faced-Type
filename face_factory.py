@@ -46,23 +46,6 @@ class FaceFactory():
         return lambda x: gp_Pnt(x[0], 0, x[1])
 
     @classmethod
-    def _make_rect(cls, coord, size):
-        assert size > 0
-
-        poly = BRepBuilderAPI_MakePolygon()
-        vertices = [
-            (coord[0] * size, coord[1] * size),
-            (coord[0] * size, coord[1] * size + size),
-            (coord[0] * size + size, coord[1] * size + size),
-            (coord[0] * size + size, coord[1] * size),
-        ]
-        create_gp_pnt = cls._get_create_gp_pnt_func()
-        for v in vertices:
-            poly.Add(create_gp_pnt(v))
-        poly.Close()
-        return poly.Wire()
-
-    @classmethod
     def _get_contiguous_paths(cls, paths):
         # TODO: this may break self-intersecting paths if the vertices match
         contiguous_paths = []
@@ -130,11 +113,8 @@ class FaceFactory():
 
         if filepath.suffix == "svg":
             return cls._create_from_svg(filepath, height_mm)
-        elif filepath.suffix == "png":
-            # TODO: this probably can handle JPG too?
-            return cls._create_from_png(filepath, height_mm)
         else:
-            raise RuntimeError("Unable to create Face from image file: {}. Unsupported filetype {}. Please use one of {}".format(filepath, filepath.suffix, "svg, png"))
+            raise RuntimeError("Unable to create Face from image file: {}. Unsupported filetype {}. Please use one of {}".format(filepath, filepath.suffix, "svg"))
 
     @classmethod
     def _normalize_lines_clockwise(cls, paths):
@@ -263,37 +243,6 @@ class FaceFactory():
 
 
     @classmethod
-    def _create_from_png(cls, filepath, height_mm):
-        assert isinstance(filepath, pathlib.Path)
-        if not filepath.is_file():
-            raise IOError("Unable to create Face from image file: {}. File does not exist".format(filepath))
-
-        # Combining wires didn't work as expected. It left some "pixels" with
-        # weird artifacts and wouldn't quite create a contiguous face (some triangles
-        # would be missing from pixels).
-        # Combining faces seems to work much better, and even allows for non-contiguous
-        # shapes (although this won't look good in the final product)
-        from time import time
-        im_frame = Image.open(filepath)
-        np_frame = np.array(im_frame)
-        pixel_size = height_mm / np_frame.shape[0]
-        faces = []
-        make_faces_start = time()
-        for z, row in enumerate(reversed(np_frame)):
-            for x, col in enumerate(row):
-                if col[0] < 1:
-                    # fill in the pixel
-                    faces.append(make_face(cls._make_rect((x, z), pixel_size)))
-        make_faces_end = time()
-        print("Making faces took {} seconds".format(make_faces_end - make_faces_start))
-        fuse_start = time()
-        fuse_faces = lambda f1, f2: BRepAlgoAPI_Fuse(f1, f2).Shape()
-        fused = reduce(fuse_faces, faces, faces[0])
-        fuse_end = time()
-        print("Fusing faces took {} seconds".format(fuse_end - fuse_start))
-        return fused
-
-    @classmethod
     def create_char(cls, char, height_mm):
         if not char.isalpha():
             raise ValueError("Unable to create face from char. Only alphanumeric characters are supported")
@@ -303,7 +252,7 @@ class FaceFactory():
         face_images_dir = pathlib.Path(__file__).parent / "face_images"
         assert face_images_dir.is_dir()
 
-        char_image_file = face_images_dir / "{}.png".format(char)
+        char_image_file = face_images_dir / "{}.svg".format(char)
         assert char_image_file.is_file()
 
-        return cls._create_from_png(char_image_file, height_mm)
+        return cls._create_from_svg(char_image_file, height_mm)
