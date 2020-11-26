@@ -54,9 +54,13 @@ class FaceFactory():
 
         paths, attributes = svg2paths(str(filepath))
 
+        # test = [p.continuous_subpaths() for p in paths]
+        # foo = cls._get_continuous_subpaths(paths)
+        # print(foo)
+        # print(test)
+        paths = cls._get_continuous_subpaths(paths)
         paths = cls._remote_zero_length_lines(paths)
-        continuous_paths = [cp for cp in cls._split_into_contiguous_paths(paths)]
-        continuous_paths = cls._normalize_paths_clockwise(continuous_paths)
+        continuous_paths = cls._normalize_paths_clockwise(paths)
         continuous_paths = cls._create_path_hierarchy(continuous_paths)
 
         faceMaker = BRepBuilderAPI_MakeFace(PL_XZ)
@@ -115,29 +119,38 @@ class FaceFactory():
         return new_paths
 
     @classmethod
-    def _split_into_contiguous_paths(cls, paths):
-        # TODO: this may break self-intersecting paths if the vertices match
-        contiguous_paths = []
+    def _get_continuous_subpaths(cls, paths):
+        subpaths = []
         for path in paths:
-            # TODO: this assumes the first element in each path is the "start" of some contiguous path
-            # ie. assumes the lines are defined in some order, with the lines for each distinct path being
-            # adjacent / contiguous. Is this guaranteed by the SVG format?
             assert isinstance(path, Path)
-            current_path = [Path()]  # hack to deep copy the value into contiguous_paths
-            for line in path:
-                if len(current_path[0]) == 0 or line.start == current_path[0].end:
-                    current_path[0].append(line)
-                else:
-                    # Need to make sure each path is a polygon with non-zero area
-                    assert len(current_path[0]) >= 3
-                    # need to copy the element
-                    contiguous_paths = contiguous_paths + current_path
-                    current_path = [Path()]
-                    current_path[0].append(line)
-            contiguous_paths = contiguous_paths + current_path
+            subpaths += path.continuous_subpaths()
+        return subpaths
 
-        assert sum([len(cp) for cp in contiguous_paths]) == sum([len(p) for p in paths])
-        return contiguous_paths
+
+
+
+        # # TODO: this may break self-intersecting paths if the vertices match
+        # contiguous_paths = []
+        # for path in paths:
+        #     # TODO: this assumes the first element in each path is the "start" of some contiguous path
+        #     # ie. assumes the lines are defined in some order, with the lines for each distinct path being
+        #     # adjacent / contiguous. Is this guaranteed by the SVG format?
+        #     assert isinstance(path, Path)
+        #     current_path = [Path()]  # hack to deep copy the value into contiguous_paths
+        #     for line in path:
+        #         if len(current_path[0]) == 0 or line.start == current_path[0].end:
+        #             current_path[0].append(line)
+        #         else:
+        #             # Need to make sure each path is a polygon with non-zero area
+        #             assert len(current_path[0]) >= 3
+        #             # need to copy the element
+        #             contiguous_paths = contiguous_paths + current_path
+        #             current_path = [Path()]
+        #             current_path[0].append(line)
+        #     contiguous_paths = contiguous_paths + current_path
+        #
+        # assert sum([len(cp) for cp in contiguous_paths]) == sum([len(p) for p in paths])
+        # return contiguous_paths
 
     @classmethod
     def _normalize_paths_clockwise(cls, paths):
@@ -145,39 +158,51 @@ class FaceFactory():
         normalized_paths = []
         for path in paths:
             assert isinstance(path, Path)
-            path_is_clockwise = cls._path_is_clockwise(path)
-            if path_is_clockwise:
-                return [path for path in paths]
-            clockwise_path = Path()
-            for line in reversed(path):
-                if isinstance(line, Line):
-                    new_start = line.end
-                    new_end = line.start
-                    line.start = new_start
-                    line.end = new_end
-                    clockwise_path.append(line)
-                elif isinstance(line, CubicBezier):
-                    new_start = line.end
-                    new_end = line.start
-                    new_control1 = line.control2
-                    new_control2 = line.control1
-                    line.start = new_start
-                    line.end = new_end
-                    line.control1 = new_control1
-                    line.control2 = new_control2
-                    clockwise_path.append(line)
-                elif isinstance(line, QuadraticBezier):
-                    new_start = line.end
-                    new_end = line.start
-                    new_control = line.control
-                    line.start = new_start
-                    line.end = new_end
-                    line.control = new_control
-                    clockwise_path.append(line)
-                else:
-                    raise RuntimeError("Invalid line type: {}".format(type(line)))
-            normalized_paths.append(clockwise_path)
+            if cls._path_is_clockwise(path):
+                normalized_paths.append(path)
+            else:
+                normalized_paths.append(path.reversed())
         return normalized_paths
+
+
+
+
+
+        # for path in paths:
+        #     assert isinstance(path, Path)
+        #     path_is_clockwise = cls._path_is_clockwise(path)
+        #     if path_is_clockwise:
+        #         return [path for path in paths]
+        #     clockwise_path = Path()
+        #     for line in reversed(path):
+        #         if isinstance(line, Line):
+        #             new_start = line.end
+        #             new_end = line.start
+        #             line.start = new_start
+        #             line.end = new_end
+        #             clockwise_path.append(line)
+        #         elif isinstance(line, CubicBezier):
+        #             new_start = line.end
+        #             new_end = line.start
+        #             new_control1 = line.control2
+        #             new_control2 = line.control1
+        #             line.start = new_start
+        #             line.end = new_end
+        #             line.control1 = new_control1
+        #             line.control2 = new_control2
+        #             clockwise_path.append(line)
+        #         elif isinstance(line, QuadraticBezier):
+        #             new_start = line.end
+        #             new_end = line.start
+        #             new_control = line.control
+        #             line.start = new_start
+        #             line.end = new_end
+        #             line.control = new_control
+        #             clockwise_path.append(line)
+        #         else:
+        #             raise RuntimeError("Invalid line type: {}".format(type(line)))
+        #     normalized_paths.append(clockwise_path)
+        # return normalized_paths
 
     @classmethod
     def _path_is_clockwise(cls, path):
