@@ -12,6 +12,7 @@ from pathlib import Path
 import os
 import errno
 
+
 def combine_faces(face1, face2, height_mm):
     # assuming both faces start in the XZ plane
 
@@ -22,11 +23,12 @@ def combine_faces(face1, face2, height_mm):
 
     # We assume characters are no wider than they are tall, but just in case
     # we extrude by twice the height to make sure to capture all features
-    face1_extruded = make_extrusion(face1, 2*height_mm, gp_Vec(0, 1, 0))
-    face2_extruded = make_extrusion(face2, 2*height_mm, gp_Vec(1, 0, 0))
+    face1_extruded = make_extrusion(face1, 2 * height_mm, gp_Vec(0, 1, 0))
+    face2_extruded = make_extrusion(face2, 2 * height_mm, gp_Vec(1, 0, 0))
     common = BRepAlgoAPI_Common(face1_extruded, face2_extruded)
 
     return common.Shape()
+
 
 def combine_words(word1, word2, height_mm):
     assert len(word1) == len(word2)
@@ -49,6 +51,7 @@ def combine_words(word1, word2, height_mm):
         offset += 12
 
     return offset_letters
+
 
 def save_to_stl(shapes, dirpath="/home/mathew/"):
     assert isinstance(shapes, list)
@@ -90,8 +93,10 @@ def main(word1, word2, height_mm, output_dir):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Combine words into Two-Faced Type, and output as STLs")
     parser.add_argument('words', metavar='word', type=str, nargs=2, help='the words to combine')
-    parser.add_argument('-o', '--output_dir', metavar='output_directory', type=str, help="The directory to write STL files to. Will be created if it doesn't exist", required=True)
-    parser.add_argument('--height', metavar='height_mm', type=float, help="The height of the characters, in mm", required=True)
+    parser.add_argument('-o', '--output_dir', metavar='output_directory', type=str,
+                        help="The directory to write STL files to. Will be created if it doesn't exist", required=True)
+    parser.add_argument('--height', metavar='height_mm', type=float, help="The height of the characters, in mm",
+                        required=True)
     args = parser.parse_args()
     print(args)
 

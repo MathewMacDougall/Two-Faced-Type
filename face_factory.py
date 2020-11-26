@@ -16,6 +16,7 @@ from svg_path_hierarchy import SvgPathHierarchy
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
+
 class FaceFactory():
     @classmethod
     def create_from_image(cls, filepath, height_mm):
@@ -26,7 +27,9 @@ class FaceFactory():
         if filepath.suffix == "svg":
             return cls._create_from_svg(filepath, height_mm)
         else:
-            raise RuntimeError("Unable to create Face from image file: {}. Unsupported filetype {}. Please use one of {}".format(filepath, filepath.suffix, "svg"))
+            raise RuntimeError(
+                "Unable to create Face from image file: {}. Unsupported filetype {}. Please use one of {}".format(
+                    filepath, filepath.suffix, "svg"))
 
     @classmethod
     def create_char(cls, char, height_mm):
@@ -74,7 +77,8 @@ class FaceFactory():
 
         # scale to the desired height
         mirrored_face_explorer = TopologyExplorer(mirrored_face)
-        current_height = max([BRep_Tool.Pnt(vertex).Z() for vertex in mirrored_face_explorer.vertices()]) - min([BRep_Tool.Pnt(vertex).Z() for vertex in mirrored_face_explorer.vertices()])
+        current_height = max([BRep_Tool.Pnt(vertex).Z() for vertex in mirrored_face_explorer.vertices()]) - min(
+            [BRep_Tool.Pnt(vertex).Z() for vertex in mirrored_face_explorer.vertices()])
         scaling_factor = height_mm / current_height
         scaling = gp_Trsf()
         scaling.SetScaleFactor(scaling_factor)
@@ -107,7 +111,7 @@ class FaceFactory():
             # ie. assumes the lines are defined in some order, with the lines for each distinct path being
             # adjacent / contiguous. Is this guaranteed by the SVG format?
             assert isinstance(path, Path)
-            current_path = [Path()] # hack to deep copy the value into contiguous_paths
+            current_path = [Path()]  # hack to deep copy the value into contiguous_paths
             for line in path:
                 if len(current_path[0]) == 0 or line.start == current_path[0].end:
                     current_path[0].append(line)
@@ -166,7 +170,8 @@ class FaceFactory():
                 all_except_path = [p for p in all_paths if p != path]
                 path_vertices = [complex(line.start.real, line.start.imag) for line in path]
                 # TODO: This doesn't really account for Bezier curves, but is close enough for now
-                if not any([cls._point_in_poly(v, other_path) for other_path in all_except_path for v in path_vertices]):
+                if not any(
+                        [cls._point_in_poly(v, other_path) for other_path in all_except_path for v in path_vertices]):
                     # No other path contains the current path
                     return path
             return None
