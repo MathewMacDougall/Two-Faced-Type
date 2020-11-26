@@ -70,19 +70,19 @@ def save_to_stl(shapes, dirpath="/home/mathew/"):
 def main(word1, word2, height_mm, output_dir):
     display, start_display, add_menu, add_function_to_menu = init_display()
 
-    # face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/S.svg", height_mm=50)
-    # display.DisplayShape(face, update=True, color="BLUE")
+    face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/S.svg", height_mm=50)
+    display.DisplayShape(face, update=True, color="BLUE")
 
     display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
     display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
     display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
 
-    letters = combine_words(word1, word2, height_mm)
-
-    for l in letters:
-        display.DisplayColoredShape(l, update=True, color="WHITE")
-
-    save_to_stl(letters, output_dir)
+    # letters = combine_words(word1, word2, height_mm)
+    #
+    # for l in letters:
+    #     display.DisplayColoredShape(l, update=True, color="WHITE")
+    #
+    # save_to_stl(letters, output_dir)
 
     start_display()
 

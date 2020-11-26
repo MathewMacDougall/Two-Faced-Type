@@ -10,97 +10,13 @@ import pathlib
 from OCC.Extend.TopologyUtils import TopologyExplorer
 from svgpathtools import svg2paths, Line, CubicBezier, Path
 import logging
-logging.getLogger("PIL").setLevel(logging.WARNING)
 from constants import PL_XZ
 from shapely.geometry import Point, Polygon
+from svg_path_hierarchy import SvgPathHierarchy
 
-class PathHierarhcy():
-    def __init__(self, root_path=None, child_paths=None):
-        if child_paths is None:
-            child_paths = list()
-        self._root_path = root_path
-        self._child_paths = child_paths
-
-    def root_path(self):
-        assert self._root_path
-        return self._root_path
-
-    def child_paths(self):
-        return self._child_paths
-
-    def set_root_path(self, new_root_path):
-        self._root_path = new_root_path
-
-    def add_child_path(self, child_path):
-        self._child_paths.append(child_path)
+logging.getLogger("PIL").setLevel(logging.WARNING)
 
 class FaceFactory():
-    @classmethod
-    def _get_create_gp_pnt_func(cls):
-        # for now assume everything is in the XZ plane. We can rotate one
-        # of the faces when we go to combine them
-        return lambda x: gp_Pnt(x[0], 0, x[1])
-
-    @classmethod
-    def _get_contiguous_paths(cls, paths):
-        # TODO: this may break self-intersecting paths if the vertices match
-        contiguous_paths = []
-        for path in paths:
-            # TODO: this assumes the first element in each path is the "start" of some contiguous path
-            # ie. assumes the lines are defined in some order, with the lines for each distinct path being
-            # adjacent / contiguous. Is this guaranteed by the SVG format?
-            assert isinstance(path, Path)
-            current_path = [Path()] # hack to deep copy the value into contiguous_paths
-            for line in path:
-                if len(current_path[0]) == 0 or line.start == current_path[0].end:
-                    current_path[0].append(line)
-                else:
-                    # need to copy the element
-                    contiguous_paths = contiguous_paths + current_path
-                    current_path = [Path()]
-            contiguous_paths = contiguous_paths + current_path
-        return contiguous_paths
-
-    @classmethod
-    def _path_is_clockwise(cls, path):
-        assert isinstance(path, Path)
-        # https://stackoverflow.com/a/1165943
-        vertices = [(path_component.start.real, path_component.start.imag) for path_component in path]
-        curve_sum = sum((v2[0] - v1[0]) * (v2[1] + v1[1]) for v1, v2 in zip(vertices, vertices[1:] + [vertices[0]]))
-        return curve_sum >= 0
-
-    @classmethod
-    def _create_wire_maker_from_lines(cls, lines):
-        wireMaker = BRepBuilderAPI_MakeWire()
-        create_gp_pnt = cls._get_create_gp_pnt_func()
-
-        for line in lines:
-            if isinstance(line, Line):
-                start = line.start
-                end = line.end
-                p1 = create_gp_pnt((start.real, start.imag))
-                p2 = create_gp_pnt((end.real, end.imag))
-                wireMaker.Add(make_edge(p1, p2))
-            elif isinstance(line, CubicBezier):
-                wireMaker.Add(cls._create_edge_from_bezier_pts(line.start, line.control1, line.control2, line.end))
-            else:
-                raise RuntimeError("Invalid line type")
-
-        return wireMaker
-
-    @classmethod
-    def _create_edge_from_bezier_pts(cls, start, cp1, cp2, end):
-        create_gp_pnt = cls._get_create_gp_pnt_func()
-        arr = TColgp_Array1OfPnt(0, 3)
-        arr.SetValue(0, create_gp_pnt((start.real, start.imag)))
-        arr.SetValue(1, create_gp_pnt((cp1.real, cp1.imag)))
-        arr.SetValue(2, create_gp_pnt((cp2.real, cp2.imag)))
-        arr.SetValue(3, create_gp_pnt((end.real, end.imag)))
-        bcurve = Geom_BezierCurve(arr)
-        bspline = g2dc.GeomConvert_CompCurveToBSplineCurve(bcurve).BSplineCurve()
-        edge = BRepBuilderAPI_MakeEdge(bspline).Edge()
-        return edge
-
     @classmethod
     def create_from_image(cls, filepath, height_mm):
         assert isinstance(filepath, pathlib.Path)
@@ -113,80 +29,19 @@ class FaceFactory():
             raise RuntimeError("Unable to create Face from image file: {}. Unsupported filetype {}. Please use one of {}".format(filepath, filepath.suffix, "svg"))
 
     @classmethod
-    def _normalize_lines_clockwise(cls, paths):
-        assert isinstance(paths, list)
-        normalized_paths = []
-        for path in paths:
-            assert isinstance(path, Path)
-            path_is_clockwise = cls._path_is_clockwise(path)
-            if path_is_clockwise:
-                return [path for path in paths]
-            clockwise_path = Path()
-            for line in reversed(path):
-                if isinstance(line, Line):
-                    new_start = line.end
-                    new_end = line.start
-                    line.start = new_start
-                    line.end = new_end
-                    clockwise_path.append(line)
-                elif isinstance(line, CubicBezier):
-                    new_start = line.end
-                    new_end = line.start
-                    new_control1 = line.control2
-                    new_control2 = line.control1
-                    line.start = new_start
-                    line.end = new_end
-                    line.control1 = new_control1
-                    line.control2 = new_control2
-                    clockwise_path.append(line)
-                else:
-                    raise RuntimeError("Invalid line type")
-            normalized_paths.append(clockwise_path)
-        return normalized_paths
+    def create_char(cls, char, height_mm):
+        if not char.isalpha():
+            raise ValueError("Unable to create face from char. Only alphanumeric characters are supported")
 
+        char = char.upper()
 
-    @classmethod
-    def _point_in_poly(cls, point, lines):
-        # helper function for checking if a (complex) point is contained
-        # inside a polygon (made of lines)
-        poly = Polygon([(line.start.real, line.start.imag) for line in lines])
-        return poly.contains(Point(point.real, point.imag))
+        face_images_dir = pathlib.Path(__file__).parent / "face_images"
+        assert face_images_dir.is_dir()
 
-    @classmethod
-    def _create_path_hierarchy(cls, paths):
-        # Find path that is not contained by another
-        def get_root_path(all_paths):
-            for path in all_paths:
-                all_except_path = [p for p in all_paths if p != path]
-                path_vertices = [complex(line.start.real, line.start.imag) for line in path]
-                # TODO: This doesn't really account for Bezier curves, but is close enough for now
-                if not any([cls._point_in_poly(v, other_path) for other_path in all_except_path for v in path_vertices]):
-                    # No other path contains the current path
-                    return path
-            return None
+        char_image_file = face_images_dir / "{}.svg".format(char)
+        assert char_image_file.is_file()
 
-        def get_contained_paths(root_path, all_paths):
-            all_except_path = [p for p in all_paths if p != root_path]
-            contained_paths = []
-            for other_path in all_except_path:
-                # TODO: This doesn't really account for Bezier curves, but is close enough for now
-                other_path_vertices = [complex(line.start.real, line.start.imag) for line in other_path]
-                if any([cls._point_in_poly(v, root_path) for v in other_path_vertices]):
-                    contained_paths.append(other_path)
-            return contained_paths
-
-
-        hierarchy = []
-        paths_copy = [p for p in paths]
-        while paths_copy:
-            root = get_root_path(paths_copy)
-            contained = get_contained_paths(root, paths_copy)
-            path_hierarchy = PathHierarhcy(root, contained)
-            hierarchy.append(path_hierarchy)
-            for cp in contained:
-                paths_copy.remove(cp)
-            paths_copy.remove(root)
-        return hierarchy
+        return cls._create_from_svg(char_image_file, height_mm)
 
     @classmethod
     def _create_from_svg(cls, filepath, height_mm):
@@ -196,8 +51,8 @@ class FaceFactory():
 
         paths, attributes = svg2paths(str(filepath))
 
-        continuous_paths = [cp for cp in cls._get_contiguous_paths(paths) ]
-        continuous_paths = cls._normalize_lines_clockwise(continuous_paths)
+        continuous_paths = [cp for cp in cls._split_into_contiguous_paths(paths)]
+        continuous_paths = cls._normalize_paths_clockwise(continuous_paths)
         continuous_paths = cls._create_path_hierarchy(continuous_paths)
 
         faceMaker = BRepBuilderAPI_MakeFace(PL_XZ)
@@ -237,18 +92,142 @@ class FaceFactory():
 
         return translated_face
 
+    @classmethod
+    def _get_create_gp_pnt_func(cls):
+        # for now assume everything is in the XZ plane. We can rotate one
+        # of the faces when we go to combine them
+        return lambda x: gp_Pnt(x[0], 0, x[1])
 
     @classmethod
-    def create_char(cls, char, height_mm):
-        if not char.isalpha():
-            raise ValueError("Unable to create face from char. Only alphanumeric characters are supported")
+    def _split_into_contiguous_paths(cls, paths):
+        # TODO: this may break self-intersecting paths if the vertices match
+        contiguous_paths = []
+        for path in paths:
+            # TODO: this assumes the first element in each path is the "start" of some contiguous path
+            # ie. assumes the lines are defined in some order, with the lines for each distinct path being
+            # adjacent / contiguous. Is this guaranteed by the SVG format?
+            assert isinstance(path, Path)
+            current_path = [Path()] # hack to deep copy the value into contiguous_paths
+            for line in path:
+                if len(current_path[0]) == 0 or line.start == current_path[0].end:
+                    current_path[0].append(line)
+                else:
+                    # need to copy the element
+                    contiguous_paths = contiguous_paths + current_path
+                    current_path = [Path()]
+            contiguous_paths = contiguous_paths + current_path
+        return contiguous_paths
 
-        char = char.upper()
+    @classmethod
+    def _normalize_paths_clockwise(cls, paths):
+        assert isinstance(paths, list)
+        normalized_paths = []
+        for path in paths:
+            assert isinstance(path, Path)
+            path_is_clockwise = cls._path_is_clockwise(path)
+            if path_is_clockwise:
+                return [path for path in paths]
+            clockwise_path = Path()
+            for line in reversed(path):
+                if isinstance(line, Line):
+                    new_start = line.end
+                    new_end = line.start
+                    line.start = new_start
+                    line.end = new_end
+                    clockwise_path.append(line)
+                elif isinstance(line, CubicBezier):
+                    new_start = line.end
+                    new_end = line.start
+                    new_control1 = line.control2
+                    new_control2 = line.control1
+                    line.start = new_start
+                    line.end = new_end
+                    line.control1 = new_control1
+                    line.control2 = new_control2
+                    clockwise_path.append(line)
+                else:
+                    raise RuntimeError("Invalid line type")
+            normalized_paths.append(clockwise_path)
+        return normalized_paths
 
-        face_images_dir = pathlib.Path(__file__).parent / "face_images"
-        assert face_images_dir.is_dir()
+    @classmethod
+    def _path_is_clockwise(cls, path):
+        assert isinstance(path, Path)
+        # https://stackoverflow.com/a/1165943
+        vertices = [(path_component.start.real, path_component.start.imag) for path_component in path]
+        curve_sum = sum((v2[0] - v1[0]) * (v2[1] + v1[1]) for v1, v2 in zip(vertices, vertices[1:] + [vertices[0]]))
+        return curve_sum >= 0
 
-        char_image_file = face_images_dir / "{}.svg".format(char)
-        assert char_image_file.is_file()
+    @classmethod
+    def _create_path_hierarchy(cls, paths):
+        # Find path that is not contained by another
+        def get_root_path(all_paths):
+            for path in all_paths:
+                all_except_path = [p for p in all_paths if p != path]
+                path_vertices = [complex(line.start.real, line.start.imag) for line in path]
+                # TODO: This doesn't really account for Bezier curves, but is close enough for now
+                if not any([cls._point_in_poly(v, other_path) for other_path in all_except_path for v in path_vertices]):
+                    # No other path contains the current path
+                    return path
+            return None
 
-        return cls._create_from_svg(char_image_file, height_mm)
+        def get_contained_paths(root_path, all_paths):
+            all_except_path = [p for p in all_paths if p != root_path]
+            contained_paths = []
+            for other_path in all_except_path:
+                # TODO: This doesn't really account for Bezier curves, but is close enough for now
+                other_path_vertices = [complex(line.start.real, line.start.imag) for line in other_path]
+                if any([cls._point_in_poly(v, root_path) for v in other_path_vertices]):
+                    contained_paths.append(other_path)
+            return contained_paths
+
+        hierarchy = []
+        paths_copy = [p for p in paths]
+        while paths_copy:
+            root = get_root_path(paths_copy)
+            contained = get_contained_paths(root, paths_copy)
+            path_hierarchy = SvgPathHierarchy(root, contained)
+            hierarchy.append(path_hierarchy)
+            for cp in contained:
+                paths_copy.remove(cp)
+            paths_copy.remove(root)
+        return hierarchy
+
+    @classmethod
+    def _point_in_poly(cls, point, lines):
+        # helper function for checking if a (complex) point is contained
+        # inside a polygon (made of lines)
+        poly = Polygon([(line.start.real, line.start.imag) for line in lines])
+        return poly.contains(Point(point.real, point.imag))
+
+    @classmethod
+    def _create_wire_maker_from_lines(cls, lines):
+        wireMaker = BRepBuilderAPI_MakeWire()
+        create_gp_pnt = cls._get_create_gp_pnt_func()
+
+        for line in lines:
+            if isinstance(line, Line):
+                start = line.start
+                end = line.end
+                p1 = create_gp_pnt((start.real, start.imag))
+                p2 = create_gp_pnt((end.real, end.imag))
+                wireMaker.Add(make_edge(p1, p2))
+            elif isinstance(line, CubicBezier):
+                wireMaker.Add(cls._create_edge_from_bezier_pts(line.start, line.control1, line.control2, line.end))
+            else:
+                raise RuntimeError("Invalid line type")
+
+        return wireMaker
+
+    @classmethod
+    def _create_edge_from_bezier_pts(cls, start, cp1, cp2, end):
+        create_gp_pnt = cls._get_create_gp_pnt_func()
+        arr = TColgp_Array1OfPnt(0, 3)
+        arr.SetValue(0, create_gp_pnt((start.real, start.imag)))
+        arr.SetValue(1, create_gp_pnt((cp1.real, cp1.imag)))
+        arr.SetValue(2, create_gp_pnt((cp2.real, cp2.imag)))
+        arr.SetValue(3, create_gp_pnt((end.real, end.imag)))
+        bcurve = Geom_BezierCurve(arr)
+        bspline = g2dc.GeomConvert_CompCurveToBSplineCurve(bcurve).BSplineCurve()
+        edge = BRepBuilderAPI_MakeEdge(bspline).Edge()
+        return edge
