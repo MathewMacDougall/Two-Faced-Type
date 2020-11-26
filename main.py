@@ -1,8 +1,9 @@
 from OCC.Display.SimpleGui import init_display
-from OCC.Extend.ShapeFactory import *
+from OCC.Extend.ShapeFactory import make_extrusion, make_edge
 from face_factory import FaceFactory
-from OCC.Core.BRepAlgoAPI import *
-from OCC.Core.gp import *
+from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Common
+from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Transform
+from OCC.Core.gp import gp_Trsf, gp_Ax1, gp_Vec, gp_Pnt
 from constants import *
 import math
 from OCC.Core.StlAPI import StlAPI_Writer
@@ -37,7 +38,7 @@ def combine_words(word1, word2, height_mm):
         combined_letter = combine_faces(face1, face2, height_mm)
         combined_faces.append(combined_letter)
 
-    # Offset letters so they can be previewd properly from 2 directions
+    # Offset letters so they can be previewed properly from 2 directions
     tf = gp_Trsf()
     p1 = ORIGIN
     offset = height_mm

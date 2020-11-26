@@ -1,16 +1,12 @@
-from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakePolygon, BRepBuilderAPI_Transform
+from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Transform
 from OCC.Core.Geom import Geom_BezierCurve
 from OCC.Core.TColgp import TColgp_Array1OfPnt
 from OCC.Core.gp import gp_Pnt, gp_Trsf, gp_OX, gp_Vec, gp_XYZ
 import OCC.Core.GeomConvert as g2dc
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire
-from OCC.Extend.ShapeFactory import make_face, make_edge
+from OCC.Extend.ShapeFactory import make_edge
 from OCC.Core.BRep import BRep_Tool
-from PIL import Image
-import numpy as np
 import pathlib
-from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Fuse
-from functools import reduce
 from OCC.Extend.TopologyUtils import TopologyExplorer
 from svgpathtools import svg2paths, Line, CubicBezier, Path
 import logging
