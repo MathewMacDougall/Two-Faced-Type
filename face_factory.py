@@ -56,13 +56,32 @@ class FaceFactory():
         # the document respects any transforms
         doc = Document(str(filepath))
         paths = doc.paths()
-        paths = cls._get_continuous_subpaths(paths)
-        paths = cls._remote_zero_length_lines(paths)
-        continuous_paths = cls._normalize_paths_clockwise(paths)
-        continuous_paths = cls._create_path_hierarchy(continuous_paths)
+        continuous_paths = cls._get_continuous_subpaths(paths)
+        continuous_paths = cls._remote_zero_length_lines(continuous_paths)
+
+        ymin = min([path.bbox()[2] for path in continuous_paths])
+        ymax = min([path.bbox()[3] for path in continuous_paths])
+        current_height = ymax - ymin
+        assert current_height >= 0
+        scaling_factor = height_mm / current_height
+        # Scale and mirror over the x-axis
+        scaled_paths = [path.scaled(scaling_factor, -scaling_factor) for path in continuous_paths]
+
+        # Line up to the x and y axes
+        xmin = min([path.bbox()[0] for path in scaled_paths])
+        ymin = min([path.bbox()[2] for path in scaled_paths])
+        translated_paths = [path.translated(complex(-xmin, -ymin)) for path in scaled_paths]
+
+        normalized_paths = cls._normalize_paths_clockwise(translated_paths)
+        path_hierarchies = cls._create_path_hierarchy(normalized_paths)
+        # Currently only really support a single main contiguous shape with holes.
+        # Although multiple disconnected shapes can be generated, they won't be
+        # perfectly represented by the final geometry because some material has to
+        # connect them
+        assert len(path_hierarchies) == 1
 
         faceMaker = BRepBuilderAPI_MakeFace(PL_XZ)
-        for path_hierarchy in continuous_paths:
+        for path_hierarchy in path_hierarchies:
             root_wire_maker = cls._create_wire_maker_from_lines(path_hierarchy.root_path())
             root_wire = root_wire_maker.Wire()
             faceMaker.Add(root_wire)
@@ -71,34 +90,7 @@ class FaceFactory():
                 sub_wire = sub_wire_maker.Wire()
                 sub_wire.Reverse()
                 faceMaker.Add(sub_wire)
-        face = faceMaker.Shape()
-
-        # mirror over the x-axis to make the face right-side up.
-        # Loading from the document makes everthing upside-down.
-        mirror = gp_Trsf()
-        mirror.SetMirror(gp_OX())
-        mirrored_face = BRepBuilderAPI_Transform(face, mirror, True).Shape()
-
-        # scale to the desired height
-        mirrored_face_explorer = TopologyExplorer(mirrored_face)
-        current_height = max([BRep_Tool.Pnt(vertex).Z() for vertex in mirrored_face_explorer.vertices()]) - min(
-            [BRep_Tool.Pnt(vertex).Z() for vertex in mirrored_face_explorer.vertices()])
-        scaling_factor = height_mm / current_height
-        scaling = gp_Trsf()
-        scaling.SetScaleFactor(scaling_factor)
-        scaled_face = BRepBuilderAPI_Transform(mirrored_face, scaling, True).Shape()
-
-        # Align the face to the x-axis (so it's not floating)
-        # and the z-axis (technically not needed, but keeps the location of the
-        # combined shape more controlled near the origin)
-        scaled_face_explorer = TopologyExplorer(scaled_face)
-        smallest_z = min([BRep_Tool.Pnt(vertex).Z() for vertex in scaled_face_explorer.vertices()])
-        smallest_x = min([BRep_Tool.Pnt(vertex).X() for vertex in scaled_face_explorer.vertices()])
-        translation = gp_Trsf()
-        translation.SetTranslation(gp_Vec(gp_XYZ(-smallest_x, 0, -smallest_z)))
-        translated_face = BRepBuilderAPI_Transform(scaled_face, translation, True).Shape()
-
-        return translated_face
+        return faceMaker.Shape()
 
     @classmethod
     def _get_create_gp_pnt_func(cls):
