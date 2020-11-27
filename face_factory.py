@@ -2,7 +2,8 @@ from OCC.Core.Geom import Geom_BezierCurve
 from OCC.Core.TColgp import TColgp_Array1OfPnt
 from OCC.Core.gp import gp_Pnt, gp_Trsf, gp_OX, gp_Elips
 import OCC.Core.GeomConvert as g2dc
-from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire, BRepBuilderAPI_Transform
+from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire, \
+    BRepBuilderAPI_Transform
 from OCC.Extend.ShapeFactory import make_edge
 import pathlib
 from svgpathtools import Line, CubicBezier, Path, QuadraticBezier, Document, Arc
@@ -54,7 +55,7 @@ class FaceFactory():
         doc = Document(str(filepath))
         paths = doc.paths()
         continuous_paths = cls._get_continuous_subpaths(paths)
-        continuous_paths = cls._remote_zero_length_lines(continuous_paths)
+        continuous_paths = cls._remove_zero_length_lines(continuous_paths)
 
         ymin = min([path.bbox()[2] for path in continuous_paths])
         ymax = min([path.bbox()[3] for path in continuous_paths])
@@ -96,7 +97,7 @@ class FaceFactory():
         return lambda x: gp_Pnt(x[0], 0, x[1])
 
     @classmethod
-    def _remote_zero_length_lines(cls, paths):
+    def _remove_zero_length_lines(cls, paths):
         new_paths = []
         for path in paths:
             pp = list(filter(lambda x: x.start != x.end, path))
@@ -239,63 +240,6 @@ class FaceFactory():
         for edge in edges:
             wire_maker.Add(edge)
         return wire_maker.Wire()
-
-    # @classmethod
-    # def _create_wire_maker_from_lines(cls, lines):
-    #     wireMaker = BRepBuilderAPI_MakeWire()
-    #     create_gp_pnt = cls._get_create_gp_pnt_func()
-    #
-    #     for line in lines:
-    #         if isinstance(line, Line):
-    #             start = line.start
-    #             end = line.end
-    #             p1 = create_gp_pnt((start.real, start.imag))
-    #             p2 = create_gp_pnt((end.real, end.imag))
-    #             wireMaker.Add(make_edge(p1, p2))
-    #         elif isinstance(line, CubicBezier):
-    #             wireMaker.Add(cls._create_edge_from_bezier_pts(line.start, line.end, line.control1, line.control2))
-    #         elif isinstance(line, QuadraticBezier):
-    #             wireMaker.Add(cls._create_edge_from_bezier_pts(line.start, line.end, line.control))
-    #         elif isinstance(line, Arc):
-    #             raise NotImplementedError()
-    #             # https://github.com/tpaviot/pythonocc-core/issues/773
-    #
-    #             # Have to do mirroring here rather than as a part of the path scaling because the svgpathtools.Arc
-    #             # class does not support scaling with different x and y scaling factors.
-    #             # mirror over the x-axis to make the face right-side up.
-    #             # Loading from the document makes everthing upside-down.
-    #             # mirror = gp_Trsf()
-    #             # mirror.SetMirror(gp_OX())
-    #             # mirrored_face = BRepBuilderAPI_Transform(faceMaker.Shape(), mirror, True).Shape()
-    #             # return mirrored_face
-    #
-    #             # from OCC.Core.gp import gp_Elips, gp_Ax2, gp_Pnt, gp_Dir
-    #             # from OCC.Core.GC import GC_MakeArcOfEllipse
-    #             # from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeEdge
-    #             # # from svgpathtools import Arc
-    #             # from constants import DIR_Y, DIR_X, DIR_Z
-    #             # import math
-    #             # arc=line
-    #             #
-    #             # major_radius = max(math.hypot(arc.radius.real, arc.radius.imag),
-    #             #                    math.hypot(arc.start.real - arc.end.imag, arc.start.imag - arc.end.imag))
-    #             # minor_radius = min(math.hypot(arc.radius.real, arc.radius.imag),
-    #             #                    math.hypot(arc.start.real - arc.end.imag, arc.start.imag - arc.end.imag))
-    #             # # https://old.opencascade.com/doc/occt-6.9.0/refman/html/classgp___elips.html#a9658323f6a5c4282e3b635e4642bfc56
-    #             # assert major_radius >= minor_radius  # enforced by OCC
-    #             # ellipse_gp = gp_Elips(gp_Ax2(create_gp_pnt((arc.center.real, arc.center.imag)), DIR_Y), major_radius, minor_radius)
-    #             # # ellipse = BRepBuilderAPI_MakeEdge(ellipse_gp).Edge()
-    #             # # ellipse_geom = GC_MakeArcOfEllipse(ellipse_gp, 0.0, math.pi / 2, True).Value()
-    #             # # ellipse_geom = GC_MakeArcOfEllipse(ellipse_gp, gp_Pnt(start.real, 0, start.imag), gp_Pnt(end.real, 0, end.imag), True).Value() # between points
-    #             # ellipse_geom = GC_MakeArcOfEllipse(ellipse_gp, 0, math.pi, True).Value()
-    #             # edge = BRepBuilderAPI_MakeEdge(ellipse_geom).Edge()
-    #             # # display.DisplayShape(edge, update=True, color="WHITE")
-    #             #
-    #             # wireMaker.Add(edge)
-    #         else:
-    #             raise RuntimeError("Invalid line type")
-    #
-    #     return wireMaker
 
     @classmethod
     def _create_edge_from_bezier_pts(cls, start, end, *control_pts):
