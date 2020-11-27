@@ -12,10 +12,10 @@ from pathlib import Path
 import os
 import errno
 
+display, start_display, add_menu, add_function_to_menu = init_display()
 
 def combine_faces(face1, face2, height_mm):
     # assuming both faces start in the XZ plane
-
     tf = gp_Trsf()
     # rotate from the XZ plane to the YZ plane
     tf.SetRotation(gp_Ax1(ORIGIN, DIR_Z), math.pi / 2)
@@ -37,18 +37,21 @@ def combine_words(word1, word2, height_mm):
     for letter1, letter2 in zip(word1, word2):
         face1 = FaceFactory.create_char(letter1, height_mm)
         face2 = FaceFactory.create_char(letter2, height_mm)
+        # display.DisplayShape(face1, update=True, color="RED")
+        # display.DisplayShape(face2, update=True, color="RED")
         combined_letter = combine_faces(face1, face2, height_mm)
         combined_faces.append(combined_letter)
 
     # Offset letters so they can be previewed properly from 2 directions
     tf = gp_Trsf()
     p1 = ORIGIN
-    offset = height_mm
+    offset = 0
+    offset_increment = 1.1*height_mm
     offset_letters = []
     for l in combined_faces:
         tf.SetTranslation(p1, gp_Pnt(offset, offset, 0))
         offset_letters.append(BRepBuilderAPI_Transform(l, tf).Shape())
-        offset += 12
+        offset += offset_increment
 
     return offset_letters
 
@@ -72,21 +75,21 @@ def save_to_stl(shapes, dirpath=Path.home()):
 # Also, useful site to make svg letters: https://maketext.io/
 # My blessed documentation: https://old.opencascade.com/doc/occt-6.9.0/refman/html/class_geom2d___b_spline_curve.html#a521ec5263443aca0d5ec43cd3ed32ac6
 def main(word1, word2, height_mm, output_dir):
-    display, start_display, add_menu, add_function_to_menu = init_display()
+    # display, start_display, add_menu, add_function_to_menu = init_display()
 
-    face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/1.svg", height_mm=50)
-    display.DisplayShape(face, update=True, color="BLUE")
+    # face = FaceFactory._create_from_svg(Path(__file__).parent / "face_images/1.svg", height_mm=50)
+    # display.DisplayShape(face, update=True, color="BLUE")
 
     display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
     display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
     display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
 
-    # letters = combine_words(word1, word2, height_mm)
-    #
-    # for l in letters:
-    #     display.DisplayColoredShape(l, update=True, color="WHITE")
-    #
-    # save_to_stl(letters, output_dir)
+    letters = combine_words(word1, word2, height_mm)
+
+    for l in letters:
+        display.DisplayColoredShape(l, update=True, color="WHITE")
+
+    save_to_stl(letters, output_dir)
 
     start_display()
 

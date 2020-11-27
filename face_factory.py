@@ -31,12 +31,12 @@ class FaceFactory():
 
     @classmethod
     def create_char(cls, char, height_mm):
-        if not char.isalpha():
-            raise ValueError("Unable to create face from char. Only alphanumeric characters are supported")
+        if not char.isalnum():
+            raise ValueError("Unable to create face from char: '{}'. Only alphanumeric characters are supported".format(char))
 
         char = char.upper()
 
-        face_images_dir = pathlib.Path(__file__).parent / "face_images"
+        face_images_dir = pathlib.Path(__file__).parent / "face_images/aldrich"
         assert face_images_dir.is_dir()
 
         char_image_file = face_images_dir / "{}.svg".format(char)
@@ -58,7 +58,7 @@ class FaceFactory():
         continuous_paths = cls._remove_zero_length_lines(continuous_paths)
 
         ymin = min([path.bbox()[2] for path in continuous_paths])
-        ymax = min([path.bbox()[3] for path in continuous_paths])
+        ymax = max([path.bbox()[3] for path in continuous_paths])
         current_height = ymax - ymin
         assert current_height >= 0
         scaling_factor = height_mm / current_height
