@@ -103,6 +103,7 @@ def main(word1, word2, height_mm, output_dir):
         print(get_color())
 
     letter = letters[0]
+    print(type(letter))
     face1 = faces1[0]
     face2 = faces2[0]
     colors = get_color()
@@ -121,25 +122,25 @@ def main(word1, word2, height_mm, output_dir):
     # def face_center(face):
     #     face.bb
 
-    algo = HLRBRep_Algo()
-    algo.Add(letter)
+    # algo = HLRBRep_Algo()
+    # algo.Add(letter)
     proj_vector = (1, 0, 0)
     view_point = (0, -100, 0)
     vertical_direction_vector = (0, 0, 1)
 
-    baz = HLRAlgo_Projector(AX_XZ)
+    # baz = HLRAlgo_Projector(AX_XZ)
     # baz = HLRAlgo_Projector(AX_YZ)
     # baz.
     # projector = Prs3d_Projector(True, 100, proj_vector[0], proj_vector[1], proj_vector[2], view_point[0], view_point[1], view_point[2], vertical_direction_vector[0], vertical_direction_vector[1], vertical_direction_vector[2])
     # algo.Projector(projector.Projector())
-    algo.Projector(baz)
-    algo.Update()
-    foobar = HLRBRep_HLRToShape(algo)
-    projshape = foobar.VCompound()
+    # algo.Projector(baz)
+    # algo.Update()
+    # foobar = HLRBRep_HLRToShape(algo)
+    # projshape = foobar.VCompound()
     # projshape = foobar.VCompound()
     # projshape = foobar.OutLineHCompound()
     # projshape = foobar.IsoLineHCompound()
-    print(type(projshape))
+    # print(type(projshape))
     # shapep = AIS_Shape(projshape).Shape()
     # print(type(shapep))
     # display.DisplayShape(projshape, update=True, color="BLACK")
@@ -153,25 +154,40 @@ def main(word1, word2, height_mm, output_dir):
     from OCC.Core.BRepExtrema import BRepExtrema_DistShapeShape
     # from OCC.Core.TopoDS import m
 
-    projshape_edges = TopologyExplorer(projshape).edges()
+    projshape_edges = TopologyExplorer(letter).edges()
     # BRepAlgoAPI_Common
-    face1_edges = TopologyExplorer(projshape).edges()
+    face1_edges = TopologyExplorer(letter).edges()
     pse = None
+    pse2 = None
     for i, e in enumerate(projshape_edges):
         if i == 10:
             pse = e
+        if i == 11:
+            pse2 = e
     fe = None
+    fe2 = None
     for i, e in enumerate(face1_edges):
         if i == 4:
             fe = e
+        if i == 5:
+            fe2 = e
     print("types: {}, {}".format(fe, pse))
+    print("types: {}, {}".format(fe2, pse2))
+
     display.DisplayShape(pse, update=True, color="BLACK")
     display.DisplayShape(fe, update=True, color="WHITE")
-    dss = BRepExtrema_DistShapeShape()
+    print("INFO")
+    print('orientation ', fe.Orientation())
+    print('null ', fe.IsNull())
+    foo = make_edge(gp_Pnt(0, 0, 0), gp_Pnt(10, 10, 10))
+    print(type(foo))
+    display.DisplayShape(foo, update=True, color="CYAN")
+    dss = BRepExtrema_DistShapeShape(fe, fe2)
+    print(dss.Value())
     # d = fe.closest(pse)
-    dss.LoadS1(fe)
-    dss.LoadS2(pse)
-    dss.Perform()
+    # dss.LoadS1(fe)
+    # dss.LoadS2(pse)
+    # dss.Perform()
     # for fe in face1_edges:
     #     for pse in projshape_edges:
     #         print("types: {}, {}".format(fe, pse))
