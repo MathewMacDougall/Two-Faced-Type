@@ -1,7 +1,7 @@
 from OCC.Display.SimpleGui import init_display
 from OCC.Extend.ShapeFactory import make_extrusion, make_edge
 from face_factory import FaceFactory
-from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Common
+from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Common, BRepAlgoAPI_Cut
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Transform
 from OCC.Core.gp import gp_Trsf, gp_Ax1, gp_Vec, gp_Pnt
 from constants import *
@@ -86,10 +86,55 @@ def main(word1, word2, height_mm, output_dir):
 
     letters = combine_words(word1, word2, height_mm)
 
-    for l in letters:
-        display.DisplayColoredShape(l, update=True, color="WHITE")
+    # for l in letters:
+    #     display.DisplayColoredShape(l, update=True, color="WHITE")
 
-    save_to_stl(letters, output_dir)
+    def get_color():
+        while True:
+            for c in ["RED", "GREEN", "BLUE", "CYAN", "ORANGE", "YELLOW", "BLACK"]:
+                yield c
+
+    for i in range(10):
+        print(get_color())
+
+    letter = letters[0]
+    colors = get_color()
+    from OCC.Extend.TopologyUtils import TopologyExplorer
+    from OCC.Core import BRepTools
+    from OCC.Core.BRepGProp import BRepGProp_Face
+    from OCC.Core.GeomLProp import GeomLProp_SLProps
+
+    exp = TopologyExplorer(letter)
+    # for edge in exp.edges():
+    #     display.DisplayShape(edge, update=True, color=next(colors))
+    for face in exp.faces():
+        display.DisplayShape(face, update=True, color=next(colors))
+
+        foo = BRepGProp_Face(face)
+        normal_point = gp_Pnt(0, 0, 0)
+        normal_vec = gp_Vec(0, 0, 0)
+        # TODO: how to get middle of face with UV mapping?
+        foo.Normal(0, 0, normal_point, normal_vec)
+        # display.DisplayShape(normal_point, update=True, color="BLACK")
+        normal_vec.Reverse()
+        # normal_extrusion = make_extrusion(face, 2*height_mm, normal_vec)
+        # display.DisplayShape(normal_extrusion, update=True, color="BLACK")
+        # letter = BRepAlgoAPI_Cut(letter, normal_extrusion).Shape()
+
+        normal_extrusion = make_extrusion(face, 2*height_mm, normal_vec)
+        # display.DisplayShape(normal_extrusion, update=True, color="BLACK")
+        letter = BRepAlgoAPI_Cut(letter, normal_extrusion).Shape()
+
+        # print(normal_point)
+        # display.DisplayShape(v, update=True, color="BLACK")
+        # print(normal_vec)
+
+        # print(face.normalAt(0, 0))
+        # face
+        # break
+    display.DisplayShape(letter, update=True, color="BLACK")
+
+    # save_to_stl(letters, output_dir)
 
     start_display()
 
