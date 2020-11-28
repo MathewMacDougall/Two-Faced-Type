@@ -1,5 +1,6 @@
+from OCC.Core.AIS import AIS_Shape
 from OCC.Display.SimpleGui import init_display
-from OCC.Extend.ShapeFactory import make_extrusion, make_edge
+from OCC.Extend.ShapeFactory import make_extrusion, make_edge, make_face
 from face_factory import FaceFactory
 from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Common, BRepAlgoAPI_Cut
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Transform
@@ -103,36 +104,88 @@ def main(word1, word2, height_mm, output_dir):
     from OCC.Core import BRepTools
     from OCC.Core.BRepGProp import BRepGProp_Face
     from OCC.Core.GeomLProp import GeomLProp_SLProps
+    # from OCC.Core.HLRTopoBRep import ToShape
+    # from OCC.Core.HLRAlgo import HLRAlgo
+    # from OCC.Core import HLRAlgo
+    # from OCC.Core.HLRBRep import HLRBRep_HLRToShape
+    from OCC.Core.Prs3d import Prs3d_Projector
+    from OCC.Core.HLRBRep import HLRBRep_Algo, HLRBRep_HLRToShape
+    from OCC.Extend.TopologyUtils import HLRAlgo_Projector
 
-    exp = TopologyExplorer(letter)
-    # for edge in exp.edges():
-    #     display.DisplayShape(edge, update=True, color=next(colors))
-    for face in exp.faces():
-        display.DisplayShape(face, update=True, color=next(colors))
+    # def face_center(face):
+    #     face.bb
 
-        foo = BRepGProp_Face(face)
-        normal_point = gp_Pnt(0, 0, 0)
-        normal_vec = gp_Vec(0, 0, 0)
-        # TODO: how to get middle of face with UV mapping?
-        foo.Normal(0, 0, normal_point, normal_vec)
-        # display.DisplayShape(normal_point, update=True, color="BLACK")
-        normal_vec.Reverse()
-        # normal_extrusion = make_extrusion(face, 2*height_mm, normal_vec)
-        # display.DisplayShape(normal_extrusion, update=True, color="BLACK")
-        # letter = BRepAlgoAPI_Cut(letter, normal_extrusion).Shape()
+    algo = HLRBRep_Algo()
+    algo.Add(letter)
+    proj_vector = (1, 0, 0)
+    view_point = (0, -100, 0)
+    vertical_direction_vector = (0, 0, 1)
 
-        normal_extrusion = make_extrusion(face, 2*height_mm, normal_vec)
-        # display.DisplayShape(normal_extrusion, update=True, color="BLACK")
-        letter = BRepAlgoAPI_Cut(letter, normal_extrusion).Shape()
+    baz = HLRAlgo_Projector(AX_XZ)
+    # baz = HLRAlgo_Projector(AX_YZ)
+    # baz.
+    # projector = Prs3d_Projector(True, 100, proj_vector[0], proj_vector[1], proj_vector[2], view_point[0], view_point[1], view_point[2], vertical_direction_vector[0], vertical_direction_vector[1], vertical_direction_vector[2])
+    # algo.Projector(projector.Projector())
+    algo.Projector(baz)
+    algo.Update()
+    foobar = HLRBRep_HLRToShape(algo)
+    projshape = foobar.VCompound()
+    # projshape = foobar.VCompound()
+    # projshape = foobar.OutLineHCompound()
+    # projshape = foobar.IsoLineHCompound()
+    print(type(projshape))
+    # shapep = AIS_Shape(projshape).Shape()
+    # print(type(shapep))
+    display.DisplayShape(projshape, update=True, color="BLACK")
+    # print(type(foobar))
+    # shape = None
+    # foobar.HCompound(shape)
+    # print(shape)
+    # proj_shape = AIS_Shape(foobar.HCompound())
+    # display.DisplayShape(letter, update=True, color="BLACK")
 
-        # print(normal_point)
-        # display.DisplayShape(v, update=True, color="BLACK")
-        # print(normal_vec)
-
-        # print(face.normalAt(0, 0))
-        # face
-        # break
-    display.DisplayShape(letter, update=True, color="BLACK")
+    # exp = TopologyExplorer(letter)
+    # # for edge in exp.edges():
+    # #     display.DisplayShape(edge, update=True, color=next(colors))
+    # for face in exp.faces():
+    #     display.DisplayShape(face, update=True, color=next(colors))
+    #
+    #     foo = BRepGProp_Face(face)
+    #     normal_point = gp_Pnt(0, 0, 0)
+    #     normal_vec = gp_Vec(0, 0, 0)
+    #     # TODO: how to get middle of face with UV mapping?
+    #     foo.Normal(0, 0, normal_point, normal_vec)
+    #     # display.DisplayShape(normal_point, update=True, color="BLACK")
+    #     normal_vec.Reverse()
+    #     # normal_extrusion = make_extrusion(face, 2*height_mm, normal_vec)
+    #     # display.DisplayShape(normal_extrusion, update=True, color="BLACK")
+    #     # letter = BRepAlgoAPI_Cut(letter, normal_extrusion).Shape()
+    #
+    #     normal_extrusion = make_extrusion(face, 2*height_mm, normal_vec)
+    #     # display.DisplayShape(normal_extrusion, update=True, color="BLACK")
+    #     letter = BRepAlgoAPI_Cut(letter, normal_extrusion).Shape()
+    #
+    #     algo = HLRBRep_Algo()
+    #     algo.Add(letter)
+    #     projector = Prs3d_Projector(False, 0, 0, 0, 5, 0, 0, 1, 0, 1, 0)
+    #     algo.Projector(projector.Projector())
+    #     algo.Update()
+    #     foobar = HLRBRep_HLRToShape(algo)
+    #     print(type(foobar))
+    #     shape = None
+    #     foobar.HCompound(shape)
+    #     print(shape)
+    #     proj_shape = AIS_Shape(foobar.HCompound())
+    #     # display.DisplayShape(foobar.HCompound, update=True, color="CYAN")
+    #
+    #     # print(normal_point)
+    #     # display.DisplayShape(v, update=True, color="BLACK")
+    #     # print(normal_vec)
+    #
+    #     # print(face.normalAt(0, 0))
+    #     # face
+    #     break
+    # display.DisplayShape(letter, update=True, color="BLACK")
 
     # save_to_stl(letters, output_dir)
 
