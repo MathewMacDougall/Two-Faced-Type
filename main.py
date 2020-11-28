@@ -35,9 +35,13 @@ def combine_words(word1, word2, height_mm):
     assert len(word1) == len(word2)
 
     combined_faces = []
+    faces1 = []
+    faces2 = []
     for letter1, letter2 in zip(word1, word2):
         face1 = FaceFactory.create_char(letter1, height_mm)
         face2 = FaceFactory.create_char(letter2, height_mm)
+        faces1.append(face1)
+        faces2.append(face2)
         # display.DisplayShape(face1, update=True, color="RED")
         # display.DisplayShape(face2, update=True, color="RED")
         combined_letter = combine_faces(face1, face2, height_mm)
@@ -54,7 +58,7 @@ def combine_words(word1, word2, height_mm):
         offset_letters.append(BRepBuilderAPI_Transform(l, tf).Shape())
         offset += offset_increment
 
-    return offset_letters
+    return offset_letters, faces1, faces2
 
 
 def save_to_stl(shapes, dirpath=Path.home()):
@@ -85,7 +89,7 @@ def main(word1, word2, height_mm, output_dir):
     display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
     display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
 
-    letters = combine_words(word1, word2, height_mm)
+    letters, faces1, faces2 = combine_words(word1, word2, height_mm)
 
     # for l in letters:
     #     display.DisplayColoredShape(l, update=True, color="WHITE")
@@ -99,6 +103,8 @@ def main(word1, word2, height_mm, output_dir):
         print(get_color())
 
     letter = letters[0]
+    face1 = faces1[0]
+    face2 = faces2[0]
     colors = get_color()
     from OCC.Extend.TopologyUtils import TopologyExplorer
     from OCC.Core import BRepTools
@@ -136,13 +142,56 @@ def main(word1, word2, height_mm, output_dir):
     print(type(projshape))
     # shapep = AIS_Shape(projshape).Shape()
     # print(type(shapep))
-    display.DisplayShape(projshape, update=True, color="BLACK")
+    # display.DisplayShape(projshape, update=True, color="BLACK")
     # print(type(foobar))
     # shape = None
     # foobar.HCompound(shape)
     # print(shape)
     # proj_shape = AIS_Shape(foobar.HCompound())
     # display.DisplayShape(letter, update=True, color="BLACK")
+    from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Common
+    from OCC.Core.BRepExtrema import BRepExtrema_DistShapeShape
+    # from OCC.Core.TopoDS import m
+
+    projshape_edges = TopologyExplorer(projshape).edges()
+    # BRepAlgoAPI_Common
+    face1_edges = TopologyExplorer(projshape).edges()
+    pse = None
+    for i, e in enumerate(projshape_edges):
+        if i == 10:
+            pse = e
+    fe = None
+    for i, e in enumerate(face1_edges):
+        if i == 4:
+            fe = e
+    print("types: {}, {}".format(fe, pse))
+    display.DisplayShape(pse, update=True, color="BLACK")
+    display.DisplayShape(fe, update=True, color="WHITE")
+    dss = BRepExtrema_DistShapeShape()
+    # d = fe.closest(pse)
+    dss.LoadS1(fe)
+    dss.LoadS2(pse)
+    dss.Perform()
+    # for fe in face1_edges:
+    #     for pse in projshape_edges:
+    #         print("types: {}, {}".format(fe, pse))
+    #         # display.DisplayShape([fe, pse])
+    #         display.DisplayShape(pse, update=True, color="BLACK")
+    #         display.DisplayShape(fe, update=True, color="WHITE")
+    #         dss = BRepExtrema_DistShapeShape()
+    #         # d = fe.closest(pse)
+    #         dss.LoadS1(fe)
+    #         dss.LoadS2(pse)
+    #         dss.Perform()
+    #         break
+    #         # assert dss.IsDone()
+    #         # print(dss.Value())
+    #     break
+
+
+
+
+
 
     # exp = TopologyExplorer(letter)
     # # for edge in exp.edges():
