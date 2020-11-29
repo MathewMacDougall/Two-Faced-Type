@@ -1,8 +1,10 @@
 from OCC.Core.AIS import AIS_Shape
+from OCC.Core.BRep import BRep_Builder
+from OCC.Core.BRepPrimAPI import BRepPrimAPI_MakeBox
 from OCC.Display.SimpleGui import init_display
 from OCC.Extend.ShapeFactory import make_extrusion, make_edge, make_face
 from face_factory import FaceFactory
-from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Common, BRepAlgoAPI_Cut
+from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Common, BRepAlgoAPI_Cut, BRepAlgoAPI_Fuse, BRepAlgoAPI_Check, BRepAlgoAPI_Section, BRepAlgoAPI_Splitter
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Transform
 from OCC.Core.gp import gp_Trsf, gp_Ax1, gp_Vec, gp_Pnt
 from constants import *
@@ -76,8 +78,77 @@ def save_to_stl(shapes, dirpath=Path.home()):
         filepath = Path(dirpath, "combined_shape_" + str(index + 1) + ".stl")
         stl_writer.Write(shape, str(filepath))
 
-def remove_redundant_geometry(solid, face1, face2):
+def remove_redundant_geometry(solid, face1, face2, height_mm):
     from OCC.Extend.TopologyUtils import TopologyExplorer
+    from OCCUtils.Common import random_color
+    from OCC.Core.BRepGProp import BRepGProp_Face
+    from OCCUtils.base import GlobalProperties
+    from OCCUtils.face import Face
+    from OCCUtils.solid import Solid
+
+    def face_width(face):
+        face_props = GlobalProperties(Face(face))
+        x1, _, _, x2, _, _ = face_props.bbox()
+        return abs(x2 - x1)-0.001 # subtract to hack away a plane at the end
+
+
+    def solid_box(solid_):
+        props = GlobalProperties(solid_)
+        x1, y1, z1, x2, y2, z2 = props.bbox()
+        p = gp_Pnt(x1, y1, z1)
+        p2 = gp_Pnt(x2, y2, z2)
+        return BRepPrimAPI_MakeBox(p, p2).Shape()
+
+
+
+    exp = TopologyExplorer(solid)
+    optimized_solid = solid
+
+    index = 0
+    for face in exp.faces():
+        if index != 23:
+            continue
+        # display.DisplayShape(face, update=True, color=random_color())
+        gprop = BRepGProp_Face(face)
+        normal_point = gp_Pnt(0, 0, 0)
+        normal_vec = gp_Vec(0, 0, 0)
+        # TODO: how to get middle of face with UV mapping?
+        gprop.Normal(0, 0, normal_point, normal_vec)
+        normal_vec.Reverse() # point into solid
+        normal_extrusion = make_extrusion(face, 2*height_mm, normal_vec)
+        optimized_solid_temp = BRepAlgoAPI_Cut(optimized_solid, normal_extrusion).Shape()
+        # display.DisplayShape(optimized_solid)
+
+
+        # CHECK IF FACES STILL EXIST AS NEEDED
+
+        containing_box = solid_box(solid)
+        display.DisplayShape(containing_box, color="WHITE", transparency=0.9)
+        negative_solid = BRepAlgoAPI_Cut(containing_box, solid).Shape()
+        # display.DisplayShape(negative_solid, color="BLACK", transparency=0.8)
+
+        face1_extruded = make_extrusion(face1, face_width(face2), gp_Vec(0, 1, 0))
+        display.DisplayShape(face1_extruded, color="BLUE", transparency=0.8)
+        face1_extruded_trimmed = BRepAlgoAPI_Cut(face1_extruded, negative_solid).Shape()
+        # display.DisplayShape(face1_extruded_trimmed, color="BLUE", transparency=0.8)
+
+        remainder = BRepAlgoAPI_Cut(face1_extruded_trimmed, optimized_solid_temp).Shape()
+        display.DisplayShape(remainder, transparency=0.5)
+        from OCC.Core.TopoDS import TopoDS_Solid
+        from OCC.Core.GProp import GProp_GProps
+        from OCC.Core import BRepGProp
+        props = GProp_GProps()
+        BRepGProp.brepgprop_VolumeProperties(remainder, props)
+        print("{}: MASS: {}".format(index, props.Mass()))
+        index += 1
+
+    # display.DisplayShape(optimized_solid)
+
+    return None
+
+
+
+
     from OCCUtils.Construct import project_edge_onto_plane
     from OCCUtils.Construct import make_edge as make_edge_foo
     from OCCUtils.edge import Edge
@@ -188,7 +259,7 @@ def main(word1, word2, height_mm, output_dir):
     letter = letters[0]
     face1 = faces1[0]
     face2 = faces2[0]
-    new_geom = remove_redundant_geometry(letter, face1, face2)
+    new_geom = remove_redundant_geometry(letter, face1, face2, height_mm)
     if new_geom:
         display.DisplayShape(new_geom, update=True, color="GREEN")
 
