@@ -104,9 +104,10 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
     exp = TopologyExplorer(solid)
     optimized_solid = solid
 
-    index = 0
+    index = -1
     for face in exp.faces():
-        if index != 23:
+        index += 1
+        if index != 22:
             continue
         # display.DisplayShape(face, update=True, color=random_color())
         gprop = BRepGProp_Face(face)
@@ -115,34 +116,34 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
         # TODO: how to get middle of face with UV mapping?
         gprop.Normal(0, 0, normal_point, normal_vec)
         normal_vec.Reverse() # point into solid
-        normal_extrusion = make_extrusion(face, 2*height_mm, normal_vec)
+        normal_extrusion = make_extrusion(face, height_mm, normal_vec)
+        # display.DisplayShape(normal_extrusion, color="CYAN", transparency=0.7)
         optimized_solid_temp = BRepAlgoAPI_Cut(optimized_solid, normal_extrusion).Shape()
-        # display.DisplayShape(optimized_solid)
+        # display.DisplayShape(optimized_solid, )
 
 
         # CHECK IF FACES STILL EXIST AS NEEDED
 
         containing_box = solid_box(solid)
-        display.DisplayShape(containing_box, color="WHITE", transparency=0.9)
+        # display.DisplayShape(containing_box, color="WHITE", transparency=0.9)
         negative_solid = BRepAlgoAPI_Cut(containing_box, solid).Shape()
         # display.DisplayShape(negative_solid, color="BLACK", transparency=0.8)
 
         face1_extruded = make_extrusion(face1, face_width(face2), gp_Vec(0, 1, 0))
-        display.DisplayShape(face1_extruded, color="BLUE", transparency=0.8)
+        # display.DisplayShape(face1_extruded, color="BLUE", transparency=0.8)
         face1_extruded_trimmed = BRepAlgoAPI_Cut(face1_extruded, negative_solid).Shape()
-        # display.DisplayShape(face1_extruded_trimmed, color="BLUE", transparency=0.8)
+        display.DisplayShape(face1_extruded_trimmed, color="BLUE", transparency=0.8)
 
         remainder = BRepAlgoAPI_Cut(face1_extruded_trimmed, optimized_solid_temp).Shape()
-        display.DisplayShape(remainder, transparency=0.5)
+        # display.DisplayShape(remainder, transparency=0.5)
         from OCC.Core.TopoDS import TopoDS_Solid
         from OCC.Core.GProp import GProp_GProps
         from OCC.Core import BRepGProp
         props = GProp_GProps()
         BRepGProp.brepgprop_VolumeProperties(remainder, props)
         print("{}: MASS: {}".format(index, props.Mass()))
-        index += 1
 
-    # display.DisplayShape(optimized_solid)
+    # display.DisplayShape(optimized_solid, transparency=0.8)
 
     return None
 
