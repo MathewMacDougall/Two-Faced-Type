@@ -1,5 +1,12 @@
 from OCC.Core.AIS import AIS_Shape
 from OCC.Core.BRep import BRep_Builder
+from OCC.Extend.TopologyUtils import TopologyExplorer
+from OCCUtils.Common import random_color
+from OCC.Core.BRepGProp import BRepGProp_Face
+from OCCUtils.base import GlobalProperties
+from OCCUtils.face import Face
+from OCCUtils.solid import Solid
+from OCC.Core.BOPAlgo import BOPAlgo_Builder
 from OCC.Core.TopoDS import TopoDS_Solid
 from OCC.Core.GProp import GProp_GProps
 from OCC.Core import BRepGProp
@@ -81,82 +88,73 @@ def save_to_stl(shapes, dirpath=Path.home()):
         filepath = Path(dirpath, "combined_shape_" + str(index + 1) + ".stl")
         stl_writer.Write(shape, str(filepath))
 
+def face_width(face):
+    face_props = GlobalProperties(Face(face))
+    x1, _, _, x2, _, _ = face_props.bbox()
+    return abs(x2 - x1)-0.001 # subtract to hack away a plane at the end
+
+def solid_box(solid_):
+    props = GlobalProperties(solid_)
+    x1, y1, z1, x2, y2, z2 = props.bbox()
+    p = gp_Pnt(x1, y1, z1)
+    p2 = gp_Pnt(x2, y2, z2)
+    return BRepPrimAPI_MakeBox(p, p2).Shape()
+
+def dot(v1, v2):
+    assert isinstance(v1, gp_Vec)
+    assert isinstance(v2, gp_Vec)
+    return v1.X() * v2.X() + v1.Y() * v2.Y() + v1.Z() * v2.Z()
+
+def get_nonperp_faces(vec, faces):
+    assert isinstance(vec, gp_Vec)
+    nonperp_faces = []
+    for face in faces:
+        gprop = BRepGProp_Face(face)
+        normal_point = gp_Pnt(0, 0, 0)
+        normal_vec = gp_Vec(0, 0, 0)
+        # TODO: how to get middle of face with UV mapping?
+        gprop.Normal(0, 0, normal_point, normal_vec)
+        if abs(dot(gp_Vec(0, 1, 0), normal_vec)) > 0.01:
+            nonperp_faces.append(face)
+    return nonperp_faces
+
+def extrude_and_clamp(faces, vec, clamp, height_mm):
+    extrusions = []
+    for face in faces:
+        extrusions.append(make_extrusion(face, 2 * height_mm, vec))
+    builder = BOPAlgo_Builder()
+    for extrusion in extrusions:
+        builder.AddArgument(extrusion)
+    builder.SetRunParallel(True)
+    builder.Perform()
+    if builder.HasErrors():
+        raise AssertionError("Failed with error: ", builder.DumpErrorsToString())
+    result = builder.Shape()
+    return BRepAlgoAPI_Common(result, clamp).Shape()
+
+def make_magic_solid(solid_, containing_box, height_mm):
+    exp = TopologyExplorer(solid_)
+    face1_nonperp_faces = get_nonperp_faces(gp_Vec(0, 1, 0), exp.faces())
+    if not face1_nonperp_faces:
+        print("ERROR")
+        count = 0
+        for e in exp.faces():
+            count += 1
+        print("count ", count)
+        # display.DisplayShape(solid)
+        # start_display()
+        return None
+    face1_reference_solid = extrude_and_clamp(face1_nonperp_faces, gp_Vec(0, 1, 0), containing_box, height_mm)
+    return face1_reference_solid
+
+def get_mass(solid_):
+    props = GProp_GProps()
+    BRepGProp.brepgprop_VolumeProperties(solid_, props)
+    return props.Mass()
+
 def remove_redundant_geometry(solid, face1, face2, height_mm):
-    from OCC.Extend.TopologyUtils import TopologyExplorer
-    from OCCUtils.Common import random_color
-    from OCC.Core.BRepGProp import BRepGProp_Face
-    from OCCUtils.base import GlobalProperties
-    from OCCUtils.face import Face
-    from OCCUtils.solid import Solid
-    from OCC.Core.BOPAlgo import BOPAlgo_Builder
-
-    def face_width(face):
-        face_props = GlobalProperties(Face(face))
-        x1, _, _, x2, _, _ = face_props.bbox()
-        return abs(x2 - x1)-0.001 # subtract to hack away a plane at the end
-
-    def solid_box(solid_):
-        props = GlobalProperties(solid_)
-        x1, y1, z1, x2, y2, z2 = props.bbox()
-        p = gp_Pnt(x1, y1, z1)
-        p2 = gp_Pnt(x2, y2, z2)
-        return BRepPrimAPI_MakeBox(p, p2).Shape()
-
-    def dot(v1, v2):
-        assert isinstance(v1, gp_Vec)
-        assert isinstance(v2, gp_Vec)
-        return v1.X() * v2.X() + v1.Y() * v2.Y() + v1.Z() * v2.Z()
-
-    def get_nonperp_faces(vec, faces):
-        assert isinstance(vec, gp_Vec)
-        nonperp_faces = []
-        for face in faces:
-            gprop = BRepGProp_Face(face)
-            normal_point = gp_Pnt(0, 0, 0)
-            normal_vec = gp_Vec(0, 0, 0)
-            # TODO: how to get middle of face with UV mapping?
-            gprop.Normal(0, 0, normal_point, normal_vec)
-            if abs(dot(gp_Vec(0, 1, 0), normal_vec)) > 0.01:
-                nonperp_faces.append(face)
-        return nonperp_faces
-
-    def extrude_and_clamp(faces, vec, clamp, height_mm):
-        extrusions = []
-        for face in faces:
-            extrusions.append(make_extrusion(face, 2 * height_mm, vec))
-        builder = BOPAlgo_Builder()
-        for extrusion in extrusions:
-            builder.AddArgument(extrusion)
-        builder.SetRunParallel(True)
-        builder.Perform()
-        if builder.HasErrors():
-            raise AssertionError("Failed with error: ", builder.DumpErrorsToString())
-        result = builder.Shape()
-        return BRepAlgoAPI_Common(result, clamp).Shape()
-
-    def make_magic_solid(solid_):
-        exp = TopologyExplorer(solid_)
-        face1_nonperp_faces = get_nonperp_faces(gp_Vec(0, 1, 0), exp.faces())
-        if not face1_nonperp_faces:
-            print("ERROR")
-            count = 0
-            for e in exp.faces():
-                count += 1
-            print("count ", count)
-            # display.DisplayShape(solid)
-            # start_display()
-            return None
-        face1_reference_solid = extrude_and_clamp(face1_nonperp_faces, gp_Vec(0, 1, 0), containing_box, height_mm)
-        return face1_reference_solid
-
-    def get_mass(solid_):
-        props = GProp_GProps()
-        BRepGProp.brepgprop_VolumeProperties(solid_, props)
-        return props.Mass()
-
-
     containing_box = solid_box(solid)
-    face1_reference_solid = make_magic_solid(solid)
+    face1_reference_solid = make_magic_solid(solid, containing_box, height_mm)
     # display.DisplayShape(face1_reference_solid)
 
     exp = TopologyExplorer(solid)
@@ -184,7 +182,7 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
             # The face we're operating on is likely an entire face. Definitely can't remove it
             foo = None
         else:
-            foo = make_magic_solid(optimized_solid_temp)
+            foo = make_magic_solid(optimized_solid_temp, containing_box, height_mm)
 
         # CHECK IF FACES STILL EXIST AS NEEDED
 
