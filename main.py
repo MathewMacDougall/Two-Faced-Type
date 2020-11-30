@@ -1,5 +1,8 @@
 from OCC.Core.AIS import AIS_Shape
 from OCC.Core.BRep import BRep_Builder
+from OCC.Core.TopoDS import TopoDS_Solid
+from OCC.Core.GProp import GProp_GProps
+from OCC.Core import BRepGProp
 from OCC.Core.BRepPrimAPI import BRepPrimAPI_MakeBox
 from OCC.Display.SimpleGui import init_display
 from OCC.Extend.ShapeFactory import make_extrusion, make_edge, make_face
@@ -85,12 +88,12 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
     from OCCUtils.base import GlobalProperties
     from OCCUtils.face import Face
     from OCCUtils.solid import Solid
+    from OCC.Core.BOPAlgo import BOPAlgo_Builder
 
     def face_width(face):
         face_props = GlobalProperties(Face(face))
         x1, _, _, x2, _, _ = face_props.bbox()
         return abs(x2 - x1)-0.001 # subtract to hack away a plane at the end
-
 
     def solid_box(solid_):
         props = GlobalProperties(solid_)
@@ -99,16 +102,71 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
         p2 = gp_Pnt(x2, y2, z2)
         return BRepPrimAPI_MakeBox(p, p2).Shape()
 
+    def dot(v1, v2):
+        assert isinstance(v1, gp_Vec)
+        assert isinstance(v2, gp_Vec)
+        return v1.X() * v2.X() + v1.Y() * v2.Y() + v1.Z() * v2.Z()
 
+    def get_nonperp_faces(vec, faces):
+        assert isinstance(vec, gp_Vec)
+        nonperp_faces = []
+        for face in faces:
+            gprop = BRepGProp_Face(face)
+            normal_point = gp_Pnt(0, 0, 0)
+            normal_vec = gp_Vec(0, 0, 0)
+            # TODO: how to get middle of face with UV mapping?
+            gprop.Normal(0, 0, normal_point, normal_vec)
+            if abs(dot(gp_Vec(0, 1, 0), normal_vec)) > 0.01:
+                nonperp_faces.append(face)
+        return nonperp_faces
+
+    def extrude_and_clamp(faces, vec, clamp, height_mm):
+        extrusions = []
+        for face in faces:
+            extrusions.append(make_extrusion(face, 2 * height_mm, vec))
+        builder = BOPAlgo_Builder()
+        for extrusion in extrusions:
+            builder.AddArgument(extrusion)
+        builder.SetRunParallel(True)
+        builder.Perform()
+        if builder.HasErrors():
+            raise AssertionError("Failed with error: ", builder.DumpErrorsToString())
+        result = builder.Shape()
+        return BRepAlgoAPI_Common(result, clamp).Shape()
+
+    def make_magic_solid(solid_):
+        exp = TopologyExplorer(solid_)
+        face1_nonperp_faces = get_nonperp_faces(gp_Vec(0, 1, 0), exp.faces())
+        if not face1_nonperp_faces:
+            print("ERROR")
+            count = 0
+            for e in exp.faces():
+                count += 1
+            print("count ", count)
+            # display.DisplayShape(solid)
+            # start_display()
+            return None
+        face1_reference_solid = extrude_and_clamp(face1_nonperp_faces, gp_Vec(0, 1, 0), containing_box, height_mm)
+        return face1_reference_solid
+
+    def get_mass(solid_):
+        props = GProp_GProps()
+        BRepGProp.brepgprop_VolumeProperties(solid_, props)
+        return props.Mass()
+
+
+    containing_box = solid_box(solid)
+    face1_reference_solid = make_magic_solid(solid)
+    # display.DisplayShape(face1_reference_solid)
 
     exp = TopologyExplorer(solid)
-    optimized_solid = solid
-
+    optimized_solid_ = [solid] + []
+    optimized_solid = optimized_solid_[0]
     index = -1
     for face in exp.faces():
         index += 1
-        if index != 22:
-            continue
+        # if index < 6:
+        #     continue
         # display.DisplayShape(face, update=True, color=random_color())
         gprop = BRepGProp_Face(face)
         normal_point = gp_Pnt(0, 0, 0)
@@ -118,30 +176,70 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
         normal_vec.Reverse() # point into solid
         normal_extrusion = make_extrusion(face, height_mm, normal_vec)
         # display.DisplayShape(normal_extrusion, color="CYAN", transparency=0.7)
-        optimized_solid_temp = BRepAlgoAPI_Cut(optimized_solid, normal_extrusion).Shape()
-        # display.DisplayShape(optimized_solid, )
+        optimized_solid_temp = BRepAlgoAPI_Cut(solid, normal_extrusion).Shape()
+        # display.DisplayShape(optimized_solid_temp, color="BLACK", transparency=0.7)
+        ost_mass = get_mass(optimized_solid_temp)
 
+        if ost_mass < 0.001:
+            # The face we're operating on is likely an entire face. Definitely can't remove it
+            foo = None
+        else:
+            foo = make_magic_solid(optimized_solid_temp)
 
         # CHECK IF FACES STILL EXIST AS NEEDED
 
-        containing_box = solid_box(solid)
-        # display.DisplayShape(containing_box, color="WHITE", transparency=0.9)
-        negative_solid = BRepAlgoAPI_Cut(containing_box, solid).Shape()
-        # display.DisplayShape(negative_solid, color="BLACK", transparency=0.8)
+        # WHY DOES THIS AFFECT BEHABIOR????
+        display.DisplayShape(face, update=True, color="CYAN", transparency=0.8)
+        if foo:
+            # display.DisplayShape(foo, color="CYAN", transparency=0.8)
+            diff = BRepAlgoAPI_Cut(face1_reference_solid, foo).Shape()
+            # display.DisplayShape(diff, color="RED", transparency=0.8)
 
-        face1_extruded = make_extrusion(face1, face_width(face2), gp_Vec(0, 1, 0))
-        # display.DisplayShape(face1_extruded, color="BLUE", transparency=0.8)
-        face1_extruded_trimmed = BRepAlgoAPI_Cut(face1_extruded, negative_solid).Shape()
-        display.DisplayShape(face1_extruded_trimmed, color="BLUE", transparency=0.8)
+            diff_mass = get_mass(diff)
+            print("{}: MASS: {}".format(index, diff_mass))
+            if diff_mass > 10:
+                print("keeping diff {}".format(index))
 
-        remainder = BRepAlgoAPI_Cut(face1_extruded_trimmed, optimized_solid_temp).Shape()
-        # display.DisplayShape(remainder, transparency=0.5)
-        from OCC.Core.TopoDS import TopoDS_Solid
-        from OCC.Core.GProp import GProp_GProps
-        from OCC.Core import BRepGProp
-        props = GProp_GProps()
-        BRepGProp.brepgprop_VolumeProperties(remainder, props)
-        print("{}: MASS: {}".format(index, props.Mass()))
+            else:
+                print("######### cutting diff {}".format(index))
+                optimized_solid = BRepAlgoAPI_Cut(optimized_solid, normal_extrusion).Shape()
+            # display.DisplayShape(optimized_solid, transparency=0.8)
+        else:
+            print("keeping diff {}".format(index))
+            # optimized_solid = BRepAlgoAPI_Cut(optimized_solid, normal_extrusion).Shape()
+            # "GOOD" faces
+            # display.DisplayShape(face, update=True, color=random_color())
+
+    display.DisplayShape(optimized_solid)
+    # break
+
+
+
+
+
+
+
+
+
+        #
+        # containing_box = solid_box(solid)
+        # # display.DisplayShape(containing_box, color="WHITE", transparency=0.9)
+        # negative_solid = BRepAlgoAPI_Cut(containing_box, solid).Shape()
+        # # display.DisplayShape(negative_solid, color="BLACK", transparency=0.8)
+        #
+        # face1_extruded = make_extrusion(face1, face_width(face2), gp_Vec(0, 1, 0))
+        # # display.DisplayShape(face1_extruded, color="BLUE", transparency=0.8)
+        # face1_extruded_trimmed = BRepAlgoAPI_Cut(face1_extruded, negative_solid).Shape()
+        # display.DisplayShape(face1_extruded_trimmed, color="BLUE", transparency=0.8)
+        #
+        # remainder = BRepAlgoAPI_Cut(face1_extruded_trimmed, optimized_solid_temp).Shape()
+        # # display.DisplayShape(remainder, transparency=0.5)
+        # from OCC.Core.TopoDS import TopoDS_Solid
+        # from OCC.Core.GProp import GProp_GProps
+        # from OCC.Core import BRepGProp
+        # props = GProp_GProps()
+        # BRepGProp.brepgprop_VolumeProperties(remainder, props)
+        # print("{}: MASS: {}".format(index, props.Mass()))
 
     # display.DisplayShape(optimized_solid, transparency=0.8)
 
