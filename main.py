@@ -158,8 +158,9 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
     # display.DisplayShape(face1_reference_solid)
 
     exp = TopologyExplorer(solid)
-    optimized_solid_ = [solid] + []
-    optimized_solid = optimized_solid_[0]
+    # optimized_solid_ = [solid] + []
+    # optimized_solid = optimized_solid_[0]
+    cutting_extrusions = []
     index = -1
     for face in exp.faces():
         index += 1
@@ -183,32 +184,60 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
             foo = None
         else:
             foo = make_magic_solid(optimized_solid_temp, containing_box, height_mm)
+            if foo:
+                # display.DisplayShape(foo, color="CYAN", transparency=0.8)
+                diff = BRepAlgoAPI_Cut(face1_reference_solid, foo).Shape()
+                # display.DisplayShape(diff, color="RED", transparency=0.8)
+
+                diff_mass = get_mass(diff)
+                print("{}: MASS: {}".format(index, diff_mass))
+                if diff_mass > 10:
+                    print("keeping diff {}".format(index))
+
+                else:
+                    print("######### cutting diff {}".format(index))
+                    cutting_extrusions.append(normal_extrusion)
+                    # optimized_solid = BRepAlgoAPI_Cut(optimized_solid, normal_extrusion).Shape()
+                # display.DisplayShape(optimized_solid, transparency=0.8)
+
+        # WHY DOES THIS AFFECT BEHAVIOR????
+        # BIG HACK. FACES ARE NOT REMOVED IF THIS LINE ISN'T HERE
+        display.DisplayShape(face, update=True, color="WHITE", transparency=1.0)
+
+    final_geom = solid
+    for cut in cutting_extrusions:
+        final_geom = BRepAlgoAPI_Cut(final_geom, cut).Shape()
+
+    display.DisplayShape(final_geom, update=True, color="GREEN", transparency=0.5)
+    print("FACES REMOVED: {}".format(len(cutting_extrusions)))
+    return None
 
         # CHECK IF FACES STILL EXIST AS NEEDED
 
         # WHY DOES THIS AFFECT BEHABIOR????
-        display.DisplayShape(face, update=True, color="CYAN", transparency=0.8)
-        if foo:
-            # display.DisplayShape(foo, color="CYAN", transparency=0.8)
-            diff = BRepAlgoAPI_Cut(face1_reference_solid, foo).Shape()
-            # display.DisplayShape(diff, color="RED", transparency=0.8)
-
-            diff_mass = get_mass(diff)
-            print("{}: MASS: {}".format(index, diff_mass))
-            if diff_mass > 10:
-                print("keeping diff {}".format(index))
-
-            else:
-                print("######### cutting diff {}".format(index))
-                optimized_solid = BRepAlgoAPI_Cut(optimized_solid, normal_extrusion).Shape()
-            # display.DisplayShape(optimized_solid, transparency=0.8)
-        else:
-            print("keeping diff {}".format(index))
+        # display.DisplayShape(face, update=True, color="CYAN", transparency=0.8)
+        # if foo:
+        #     # display.DisplayShape(foo, color="CYAN", transparency=0.8)
+        #     diff = BRepAlgoAPI_Cut(face1_reference_solid, foo).Shape()
+        #     # display.DisplayShape(diff, color="RED", transparency=0.8)
+        #
+        #     diff_mass = get_mass(diff)
+        #     print("{}: MASS: {}".format(index, diff_mass))
+        #     if diff_mass > 10:
+        #         print("keeping diff {}".format(index))
+        #
+        #     else:
+        #         print("######### cutting diff {}".format(index))
+        #         optimized_solid = BRepAlgoAPI_Cut(optimized_solid, normal_extrusion).Shape()
+        #     # display.DisplayShape(optimized_solid, transparency=0.8)
+        # else:
+        #     print("keeping diff {}".format(index))
             # optimized_solid = BRepAlgoAPI_Cut(optimized_solid, normal_extrusion).Shape()
             # "GOOD" faces
             # display.DisplayShape(face, update=True, color=random_color())
 
-    display.DisplayShape(optimized_solid)
+
+    # display.DisplayShape(optimized_solid)
     # break
 
 
@@ -241,104 +270,103 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
 
     # display.DisplayShape(optimized_solid, transparency=0.8)
 
-    return None
-
-
-
-
-    from OCCUtils.Construct import project_edge_onto_plane
-    from OCCUtils.Construct import make_edge as make_edge_foo
-    from OCCUtils.edge import Edge
-    from OCC.Core.GeomAdaptor import GeomAdaptor_Curve
-    from OCC.Core.GeomProjLib import geomprojlib_ProjectOnPlane
-    from OCC.Core.Prs3d import Prs3d_Projector
-    from OCC.Core.HLRBRep import HLRBRep_Algo, HLRBRep_HLRToShape
-    from OCC.Extend.TopologyUtils import HLRAlgo_Projector
-    from OCC.Core.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_HCurve
-    from OCCUtils.edge import Edge
-    from OCC.Core.Geom import Geom_Plane
-    solid_edges = TopologyExplorer(solid).edges()
-    face1edges = TopologyExplorer(face1).edges()
-    # display.DisplayShape(face1edges)
-    face2edges = TopologyExplorer(face2).edges()
-    proj_edges = []
-    for edge in face1edges:
-        e = Edge(edge)
-        pl = Geom_Plane(PL_XZ)
-        # display.DisplayShape(e, update=True, color="BLUE")
-        # display.DisplayShape(e.adaptor.Curve().Curve(), update=True, color="BLUE")
-        # adaptor = BRepAdaptor_Curve(e)
-        # display.DisplayShape(e.curve)
-        # proj_edges.append(make_edge())
-        # adaptor.
-
-        # baz = HLRAlgo_Projector(AX_XZ)
-        # # baz = HLRAlgo_Projector(AX_YZ)
-        # # baz.
-        # # projector = Prs3d_Projector(True, 100, proj_vector[0], proj_vector[1], proj_vector[2], view_point[0], view_point[1], view_point[2], vertical_direction_vector[0], vertical_direction_vector[1], vertical_direction_vector[2])
-        # # algo.Projector(projector.Projector())
-        # algo = HLRBRep_Algo()
-        # algo.Add(e)
-        # algo.Projector(baz)
-        # algo.Update()
-        # foobar = HLRBRep_HLRToShape(algo)
-        # projshape = foobar.VCompound()
-        # print(type(projshape))
-        # shapep = AIS_Shape(projshape).Shape()
-        # display.DisplayShape(projshape, update=True, color="BLUE")
-        # projshape = foobar.VCompound()
-        # projshape = foobar.OutLineHCompound()
-        # projshape = foobar.IsoLineHCompound()
-        # print(type(projshape))
-        # shapep = AIS_Shape(projshape).Shape()
-        # print(type(shapep))
-        # display.DisplayShape(projshape, update=True, color="BLACK")
-
-        # continue
-        # display.DisplayShape(e)
-        # proj_edges.append(project_edge_onto_plane(e, pl))
-        # from OCC.Core.GeomProjLib import geomprojlib_ProjectOnPlane
-        # proj = geomprojlib_ProjectOnPlane(e.adaptor.Curve().Curve(), pl, pl.Axis().Direction(), False)
-        proj = geomprojlib_ProjectOnPlane(e.adaptor.Curve().Curve(), pl, pl.Axis().Direction(), False)
-        print(e.adaptor.Curve().GetType())
-        print('projtype: ', type(proj))
-        projedge = Edge(make_edge(proj))
-        proj_edges.append(projedge)
-        print("projedge type: ", type(projedge))
-        test = GeomAdaptor_Curve(proj)
-        test2 = test.Trim(0, 1, 0.01)
-        display.DisplayShape(test2.Curve(), update=True, color="RED")
-
-        print('test type: ', type(test))
-        # try:
-        #     display.DisplayShape(projedge, update=True, color="RED")
-        # except Exception:
-        #     pass
-        # proj_edges.append(proj)
-        # Geom_Plane
-        # return make_edge(proj)
-
-        # proj = geomprojlib_ProjectOnPlane(edge.Curve(), PL_XZ, PL_XZ.Axis().Direction(), 1)
-        # proj_edges.append(project_edge_onto_plane(e, PL_XZ))
-
-    # display.DisplayShape([proj_edges])
-    # print("edge types")
-    # test_edge = make_edge(gp_Pnt(0, 0, 100), gp_Pnt(100, 0, 100))
-    # display.DisplayShape(test_edge, update=True, color="BLACK")
-    # for pe in proj_edges:
-    #     print(type(pe))
-    #     # print(type(make_edge(pe)))
-    #     try:
-    #         display.DisplayShape(pe, update=True, color="RED")
-    #     except Exception:
-    #         pass
-    #     print(pe.closest(test_edge))
-
-
-
-
-
-    return None
+    #
+    #
+    #
+    #
+    # from OCCUtils.Construct import project_edge_onto_plane
+    # from OCCUtils.Construct import make_edge as make_edge_foo
+    # from OCCUtils.edge import Edge
+    # from OCC.Core.GeomAdaptor import GeomAdaptor_Curve
+    # from OCC.Core.GeomProjLib import geomprojlib_ProjectOnPlane
+    # from OCC.Core.Prs3d import Prs3d_Projector
+    # from OCC.Core.HLRBRep import HLRBRep_Algo, HLRBRep_HLRToShape
+    # from OCC.Extend.TopologyUtils import HLRAlgo_Projector
+    # from OCC.Core.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_HCurve
+    # from OCCUtils.edge import Edge
+    # from OCC.Core.Geom import Geom_Plane
+    # solid_edges = TopologyExplorer(solid).edges()
+    # face1edges = TopologyExplorer(face1).edges()
+    # # display.DisplayShape(face1edges)
+    # face2edges = TopologyExplorer(face2).edges()
+    # proj_edges = []
+    # for edge in face1edges:
+    #     e = Edge(edge)
+    #     pl = Geom_Plane(PL_XZ)
+    #     # display.DisplayShape(e, update=True, color="BLUE")
+    #     # display.DisplayShape(e.adaptor.Curve().Curve(), update=True, color="BLUE")
+    #     # adaptor = BRepAdaptor_Curve(e)
+    #     # display.DisplayShape(e.curve)
+    #     # proj_edges.append(make_edge())
+    #     # adaptor.
+    #
+    #     # baz = HLRAlgo_Projector(AX_XZ)
+    #     # # baz = HLRAlgo_Projector(AX_YZ)
+    #     # # baz.
+    #     # # projector = Prs3d_Projector(True, 100, proj_vector[0], proj_vector[1], proj_vector[2], view_point[0], view_point[1], view_point[2], vertical_direction_vector[0], vertical_direction_vector[1], vertical_direction_vector[2])
+    #     # # algo.Projector(projector.Projector())
+    #     # algo = HLRBRep_Algo()
+    #     # algo.Add(e)
+    #     # algo.Projector(baz)
+    #     # algo.Update()
+    #     # foobar = HLRBRep_HLRToShape(algo)
+    #     # projshape = foobar.VCompound()
+    #     # print(type(projshape))
+    #     # shapep = AIS_Shape(projshape).Shape()
+    #     # display.DisplayShape(projshape, update=True, color="BLUE")
+    #     # projshape = foobar.VCompound()
+    #     # projshape = foobar.OutLineHCompound()
+    #     # projshape = foobar.IsoLineHCompound()
+    #     # print(type(projshape))
+    #     # shapep = AIS_Shape(projshape).Shape()
+    #     # print(type(shapep))
+    #     # display.DisplayShape(projshape, update=True, color="BLACK")
+    #
+    #     # continue
+    #     # display.DisplayShape(e)
+    #     # proj_edges.append(project_edge_onto_plane(e, pl))
+    #     # from OCC.Core.GeomProjLib import geomprojlib_ProjectOnPlane
+    #     # proj = geomprojlib_ProjectOnPlane(e.adaptor.Curve().Curve(), pl, pl.Axis().Direction(), False)
+    #     proj = geomprojlib_ProjectOnPlane(e.adaptor.Curve().Curve(), pl, pl.Axis().Direction(), False)
+    #     print(e.adaptor.Curve().GetType())
+    #     print('projtype: ', type(proj))
+    #     projedge = Edge(make_edge(proj))
+    #     proj_edges.append(projedge)
+    #     print("projedge type: ", type(projedge))
+    #     test = GeomAdaptor_Curve(proj)
+    #     test2 = test.Trim(0, 1, 0.01)
+    #     display.DisplayShape(test2.Curve(), update=True, color="RED")
+    #
+    #     print('test type: ', type(test))
+    #     # try:
+    #     #     display.DisplayShape(projedge, update=True, color="RED")
+    #     # except Exception:
+    #     #     pass
+    #     # proj_edges.append(proj)
+    #     # Geom_Plane
+    #     # return make_edge(proj)
+    #
+    #     # proj = geomprojlib_ProjectOnPlane(edge.Curve(), PL_XZ, PL_XZ.Axis().Direction(), 1)
+    #     # proj_edges.append(project_edge_onto_plane(e, PL_XZ))
+    #
+    # # display.DisplayShape([proj_edges])
+    # # print("edge types")
+    # # test_edge = make_edge(gp_Pnt(0, 0, 100), gp_Pnt(100, 0, 100))
+    # # display.DisplayShape(test_edge, update=True, color="BLACK")
+    # # for pe in proj_edges:
+    # #     print(type(pe))
+    # #     # print(type(make_edge(pe)))
+    # #     try:
+    # #         display.DisplayShape(pe, update=True, color="RED")
+    # #     except Exception:
+    # #         pass
+    # #     print(pe.closest(test_edge))
+    #
+    #
+    #
+    #
+    #
+    # return None
 
 # Also, useful site to make svg letters: https://maketext.io/
 # My blessed documentation: https://old.opencascade.com/doc/occt-6.9.0/refman/html/class_geom2d___b_spline_curve.html#a521ec5263443aca0d5ec43cd3ed32ac6
