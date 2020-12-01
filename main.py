@@ -158,54 +158,50 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
     # display.DisplayShape(face1_reference_solid)
 
     exp = TopologyExplorer(solid)
-    # optimized_solid_ = [solid] + []
-    # optimized_solid = optimized_solid_[0]
     cutting_extrusions = []
-    index = -1
     for face in exp.faces():
-        index += 1
-        # if index < 6:
-        #     continue
-        # display.DisplayShape(face, update=True, color=random_color())
         gprop = BRepGProp_Face(face)
         normal_point = gp_Pnt(0, 0, 0)
         normal_vec = gp_Vec(0, 0, 0)
         # TODO: how to get middle of face with UV mapping?
         gprop.Normal(0, 0, normal_point, normal_vec)
-        normal_vec.Reverse() # point into solid
-        normal_extrusion = make_extrusion(face, height_mm, normal_vec)
-        # display.DisplayShape(normal_extrusion, color="CYAN", transparency=0.7)
-        optimized_solid_temp = BRepAlgoAPI_Cut(solid, normal_extrusion).Shape()
-        # display.DisplayShape(optimized_solid_temp, color="BLACK", transparency=0.7)
+        normal_vec_reversed = normal_vec.Reversed() # point into solid
+        normal_extrusion = make_extrusion(face, height_mm, normal_vec_reversed)
+        cutting_extrusions.append(normal_extrusion)
+
+    print("len cutting extrusions: {}".format(len(cutting_extrusions)))
+    final_cutting_extrusions = []
+    for cutting_extrusion in cutting_extrusions:
+        optimized_solid_temp = BRepAlgoAPI_Cut(solid, cutting_extrusion).Shape()
         ost_mass = get_mass(optimized_solid_temp)
 
         if ost_mass < 0.001:
             # The face we're operating on is likely an entire face. Definitely can't remove it
-            foo = None
+            pass
         else:
             foo = make_magic_solid(optimized_solid_temp, containing_box, height_mm)
             if foo:
-                # display.DisplayShape(foo, color="CYAN", transparency=0.8)
                 diff = BRepAlgoAPI_Cut(face1_reference_solid, foo).Shape()
-                # display.DisplayShape(diff, color="RED", transparency=0.8)
-
+                display.DisplayShape(diff, color="RED", transparency=0.8)
                 diff_mass = get_mass(diff)
-                print("{}: MASS: {}".format(index, diff_mass))
-                if diff_mass > 10:
-                    print("keeping diff {}".format(index))
-
+                # print("{}: MASS: {}".format(index, diff_mass))
+                if diff_mass > 0.1:
+                    pass
                 else:
-                    print("######### cutting diff {}".format(index))
-                    cutting_extrusions.append(normal_extrusion)
+                    final_cutting_extrusions.append(cutting_extrusion)
+                    # print("######### cutting diff {}".format(index))
+                    # cutting_extrusions.append(normal_extrusion)
+                    # display.DisplayShape(face, update=True, color="RED", transparency=0.1)
                     # optimized_solid = BRepAlgoAPI_Cut(optimized_solid, normal_extrusion).Shape()
                 # display.DisplayShape(optimized_solid, transparency=0.8)
 
         # WHY DOES THIS AFFECT BEHAVIOR????
         # BIG HACK. FACES ARE NOT REMOVED IF THIS LINE ISN'T HERE
-        display.DisplayShape(face, update=True, color="WHITE", transparency=1.0)
+        # display.DisplayShape(face, update=True, color="WHITE", transparency=1.0)
 
+    print("num cutting extrusions: {}".format(len(final_cutting_extrusions)))
     final_geom = solid
-    for cut in cutting_extrusions:
+    for cut in final_cutting_extrusions:
         final_geom = BRepAlgoAPI_Cut(final_geom, cut).Shape()
 
     display.DisplayShape(final_geom, update=True, color="GREEN", transparency=0.5)
