@@ -1,5 +1,6 @@
 from OCC.Core.AIS import AIS_Shape
 from OCC.Core.BRep import BRep_Builder
+from OCC.Core.TopTools import TopTools_HSequenceOfShape
 from OCC.Extend.TopologyUtils import TopologyExplorer
 from OCCUtils.Common import random_color
 from OCC.Core.BRepGProp import BRepGProp_Face
@@ -109,6 +110,7 @@ def get_nonperp_faces(vec, faces):
     assert isinstance(vec, gp_Vec)
     nonperp_faces = []
     for face in faces:
+        # display.DisplayShape(face, color="GREEN", transparency=0.8)
         gprop = BRepGProp_Face(face)
         normal_point = gp_Pnt(0, 0, 0)
         normal_vec = gp_Vec(0, 0, 0)
@@ -135,29 +137,67 @@ def extrude_and_clamp(faces, vec, clamp, height_mm):
 def make_magic_solid(solid_, containing_box, height_mm):
     exp = TopologyExplorer(solid_)
     face1_nonperp_faces = get_nonperp_faces(gp_Vec(0, 1, 0), exp.faces())
+    print("nonperp faces: {}".format(len(face1_nonperp_faces)))
     if not face1_nonperp_faces:
-        print("ERROR")
-        count = 0
-        for e in exp.faces():
-            count += 1
-        print("count ", count)
-        # display.DisplayShape(solid)
-        # start_display()
-        return None
+        raise RuntimeError("AAAAAAAH")
+        # print("ERROR")
+        # count = 0
+        # for e in exp.faces():
+        #     count += 1
+        # print("count ", count)
+        # # display.DisplayShape(solid)
+        # # start_display()
+        # return None
     face1_reference_solid = extrude_and_clamp(face1_nonperp_faces, gp_Vec(0, 1, 0), containing_box, height_mm)
+    # display.DisplayShape(face1_reference_solid, color="BLUE", transparency=0.8)
     return face1_reference_solid
 
 def get_mass(solid_):
-    props = GProp_GProps()
-    BRepGProp.brepgprop_VolumeProperties(solid_, props)
-    return props.Mass()
+    from OCC.Core.ShapeExtend import ShapeExtend_Explorer
+    se_exp = ShapeExtend_Explorer()
+    hseqofshape = se_exp.SeqFromCompound(solid_, False)
+    hseq_vertices = TopTools_HSequenceOfShape()
+    hseq_edges = TopTools_HSequenceOfShape()
+    hseq_wires = TopTools_HSequenceOfShape()
+    hseq_faces = TopTools_HSequenceOfShape()
+    hseq_shells = TopTools_HSequenceOfShape()
+    hseq_solids = TopTools_HSequenceOfShape()
+    hseq_compsols = TopTools_HSequenceOfShape()
+    hseq_compounds = TopTools_HSequenceOfShape()
+    se_exp.DispatchList(hseqofshape, hseq_vertices, hseq_edges, hseq_wires, hseq_faces, hseq_shells, hseq_solids,
+                        hseq_compsols, hseq_compounds)
+    count = 0
+    for i in range(hseq_solids.Length()):
+        count += 1
+    print("Found {} solids in the compound".format(count))
+
+    total_mass = 0
+    for i in range(hseq_solids.Length()):
+        print(i)
+        # OH GOD INDICES START AT 1
+        s = hseq_solids.Value(i+1)
+        props = GProp_GProps()
+        BRepGProp.brepgprop_VolumeProperties(s, props)
+        mass = props.Mass()
+        total_mass += mass
+    # foo = Solid(solid_)
+    # print("num shells: ", len(foo.shells()))
+    # print("mass type: ", type(mass))
+    print("solid type: ", type(solid_))
+    print("mass ", total_mass)
+    return total_mass
 
 def remove_redundant_geometry(solid, face1, face2, height_mm):
-    containing_box = solid_box(solid)
-    face1_reference_solid = make_magic_solid(solid, containing_box, height_mm)
+    bounding_box = solid_box(solid)
+    face1_reference_solid = make_magic_solid(solid, bounding_box, height_mm)
     # display.DisplayShape(face1_reference_solid)
 
+    # TODO: You are here. Think issue might be because I'm treating Compounds as single solids
+    # Need to make sure I'm getting all solids in the compound and using those instead. Likely need ot replace a lot of stuff
+
     exp = TopologyExplorer(solid)
+    total_num_faces = len([face for face in exp.faces()])
+    print("total num faces: {}".format(total_num_faces))
     cutting_extrusions = []
     for face in exp.faces():
         gprop = BRepGProp_Face(face)
@@ -171,41 +211,71 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
 
     print("len cutting extrusions: {}".format(len(cutting_extrusions)))
     final_cutting_extrusions = []
-    for cutting_extrusion in cutting_extrusions:
+    for index, cutting_extrusion in enumerate(cutting_extrusions):
         optimized_solid_temp = BRepAlgoAPI_Cut(solid, cutting_extrusion).Shape()
+
+        # from OCC.Core.ShapeExtend import ShapeExtend_Explorer
+        # se_exp = ShapeExtend_Explorer()
+        # hseqofshape = se_exp.SeqFromCompound(optimized_solid_temp, False)
+        # hseq_vertices = TopTools_HSequenceOfShape()
+        # hseq_edges = TopTools_HSequenceOfShape()
+        # hseq_wires = TopTools_HSequenceOfShape()
+        # hseq_faces = TopTools_HSequenceOfShape()
+        # hseq_shells = TopTools_HSequenceOfShape()
+        # hseq_solids = TopTools_HSequenceOfShape()
+        # hseq_compsols = TopTools_HSequenceOfShape()
+        # hseq_compounds = TopTools_HSequenceOfShape()
+        # se_exp.DispatchList(hseqofshape, hseq_vertices, hseq_edges, hseq_wires, hseq_faces, hseq_shells, hseq_solids, hseq_compsols, hseq_compounds)
+
+
+
+
         ost_mass = get_mass(optimized_solid_temp)
+        # print("ost mass: {}".format(ost_mass))
+        if index == 17:
+            # display.DisplayShape(optimized_solid_temp, color="CYAN", transparency=1.0)
+            # display.DisplayShape(cutting_extrusion, color="BLACK", transparency=0.8)
+            print("\n\n\n{} index ost_mass: {}".format(index, ost_mass))
+            # continue
 
         if ost_mass < 0.001:
             # The face we're operating on is likely an entire face. Definitely can't remove it
+            # print("{} OST MASS SMALL".format(index))
             pass
         else:
-            foo = make_magic_solid(optimized_solid_temp, containing_box, height_mm)
+            foo = make_magic_solid(optimized_solid_temp, bounding_box, height_mm)
             if foo:
+                # print("{} magic solid".format(index))
                 diff = BRepAlgoAPI_Cut(face1_reference_solid, foo).Shape()
-                display.DisplayShape(diff, color="RED", transparency=0.8)
+                # display.DisplayShape(diff, color="RED", transparency=0.8)
                 diff_mass = get_mass(diff)
+                if index == 17:
+                    # display.DisplayShape(foo, color="BLUE", transparency=0.8)
+                    # display.DisplayShape(diff, color="RED", transparency=0.8)
+                    print("{} diff_mass: {}".format(index, diff_mass))
                 # print("{}: MASS: {}".format(index, diff_mass))
-                if diff_mass > 0.1:
-                    pass
-                else:
+                if diff_mass < 0.1:
                     final_cutting_extrusions.append(cutting_extrusion)
-                    # print("######### cutting diff {}".format(index))
-                    # cutting_extrusions.append(normal_extrusion)
-                    # display.DisplayShape(face, update=True, color="RED", transparency=0.1)
-                    # optimized_solid = BRepAlgoAPI_Cut(optimized_solid, normal_extrusion).Shape()
-                # display.DisplayShape(optimized_solid, transparency=0.8)
 
-        # WHY DOES THIS AFFECT BEHAVIOR????
-        # BIG HACK. FACES ARE NOT REMOVED IF THIS LINE ISN'T HERE
-        # display.DisplayShape(face, update=True, color="WHITE", transparency=1.0)
+            # if diff_mass > 0.1:
+                #     # print("{} foo".format(index))
+                #     pass
+                # else:
+                #     print("{} adding final cutting extrusion".format(index))
+                #     final_cutting_extrusions.append(cutting_extrusion)
+            else:
+                # print("{} no magic solid".format(index))
+                pass
+        if index == 17:
+            print("\n\n\n")
 
-    print("num cutting extrusions: {}".format(len(final_cutting_extrusions)))
+    print("num final cutting extrusions: {}".format(len(final_cutting_extrusions)))
     final_geom = solid
     for cut in final_cutting_extrusions:
         final_geom = BRepAlgoAPI_Cut(final_geom, cut).Shape()
 
-    display.DisplayShape(final_geom, update=True, color="GREEN", transparency=0.5)
-    print("FACES REMOVED: {}".format(len(cutting_extrusions)))
+    # display.DisplayShape(final_geom, update=True, color="GREEN", transparency=0.9)
+    print("FACES REMOVED: {}".format(len(final_cutting_extrusions)))
     return None
 
         # CHECK IF FACES STILL EXIST AS NEEDED
