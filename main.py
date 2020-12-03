@@ -185,9 +185,10 @@ def make_magic_solid(compound, containing_box, height_mm):
 
 def get_list_from_compound(compound, seq_type):
     assert isinstance(seq_type, CompoundSequenceType)
+    compound_ = copy.deepcopy(compound)
 
     se_exp = ShapeExtend_Explorer()
-    hseqofshape = se_exp.SeqFromCompound(compound, True)
+    hseqofshape = se_exp.SeqFromCompound(compound_, True)
     hseq_vertices = TopTools_HSequenceOfShape()
     hseq_edges = TopTools_HSequenceOfShape()
     hseq_wires = TopTools_HSequenceOfShape()
@@ -217,9 +218,11 @@ def get_list_from_compound(compound, seq_type):
         raise ValueError("Invalid sequence type")
 
 
-def get_mass(solid_):
-    assert isinstance(solid_, TopoDS_Compound)
-    solids = get_list_from_compound(solid_, CompoundSequenceType.SOLID)
+def get_mass(compound):
+    assert isinstance(compound, TopoDS_Compound)
+    compound_ = copy.deepcopy(compound)
+
+    solids = get_list_from_compound(compound_, CompoundSequenceType.SOLID)
     print("Found {} solids in the compound".format(len(solids)))
 
     total_mass = 0
@@ -232,16 +235,20 @@ def get_mass(solid_):
     print("total mass ", total_mass)
     return total_mass
 
-def remove_redundant_geometry(solid, face1, face2, height_mm):
-    assert isinstance(solid, TopoDS_Compound)
+def remove_redundant_geometry(compound, face1, face2, height_mm):
+    assert isinstance(compound, TopoDS_Compound)
     assert isinstance(face1, TopoDS_Face)
     assert isinstance(face2, TopoDS_Face)
 
-    bounding_box = solid_box(solid)
-    face1_reference_solid = make_magic_solid(solid, bounding_box, height_mm)
+    compound_ = copy.deepcopy(compound)
+    face1_ = copy.deepcopy(face1)
+    face2_ = copy.deepcopy(face2)
+
+    bounding_box = solid_box(compound_)
+    face1_reference_solid = make_magic_solid(compound_, bounding_box, height_mm)
     # display.DisplayShape(face1_reference_solid)
 
-    faces = get_list_from_compound(solid, CompoundSequenceType.FACE)
+    faces = get_list_from_compound(compound_, CompoundSequenceType.FACE)
     print("total num faces: {}".format(len(faces)))
     cutting_extrusions = []
     for face in faces:
@@ -265,7 +272,7 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
     print("len cutting extrusions: {}".format(len(cutting_extrusions)))
     final_cutting_extrusions = []
     for index, cutting_extrusion in enumerate(cutting_extrusions):
-        optimized_solid_temp = BRepAlgoAPI_Cut(solid, cutting_extrusion).Shape()
+        optimized_solid_temp = BRepAlgoAPI_Cut(compound_, cutting_extrusion).Shape()
 
         ost_mass = get_mass(optimized_solid_temp)
         # print("ost mass: {}".format(ost_mass))
@@ -311,13 +318,14 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
             print("\n\n\n")
 
     print("num final cutting extrusions: {}".format(len(final_cutting_extrusions)))
-    final_geom = solid
+    final_geom = compound_
     for cut in final_cutting_extrusions:
         final_geom = BRepAlgoAPI_Cut(final_geom, cut).Shape()
 
     display.DisplayShape(final_geom, update=True, color="GREEN", transparency=0.9)
     print("FACES REMOVED: {}".format(len(final_cutting_extrusions)))
-    return None
+    return copy.deepcopy(final_geom)
+    # return None
 
         # CHECK IF FACES STILL EXIST AS NEEDED
 
