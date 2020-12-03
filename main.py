@@ -232,6 +232,11 @@ def get_mass(compound):
 def remove_redundant_geometry(shapes, height_mm):
     return [_remove_redundant_geometry_helper(shape, height_mm) for shape in shapes]
 
+def face_is_valid(temp_cut_compound_, vec_, bounding_box_, reference_solid, height_mm):
+    temp_projected_compound = project_and_clamp(temp_cut_compound_, vec_, bounding_box_, height_mm)
+    diff = BRepAlgoAPI_Cut(reference_solid, temp_projected_compound).Shape()
+    diff_mass = get_mass(diff)
+    return diff_mass < 0.1
 
 def _remove_redundant_geometry_helper(compound, height_mm):
     assert isinstance(compound, TopoDS_Compound)
@@ -258,24 +263,26 @@ def _remove_redundant_geometry_helper(compound, height_mm):
 
     final_cutting_extrusions = []
     for cutting_extrusion in cutting_extrusions:
-        optimized_solid_temp = BRepAlgoAPI_Cut(compound_, cutting_extrusion).Shape()
+        temp_cut_compound = BRepAlgoAPI_Cut(compound_, cutting_extrusion).Shape()
 
-        ost_mass = get_mass(optimized_solid_temp)
+        ost_mass = get_mass(temp_cut_compound)
 
-        if ost_mass < 1.001:
-            # The face we're operating on is likely an entire face. Definitely can't remove it
-            pass
-        else:
-            foo = project_and_clamp(optimized_solid_temp, gp_Vec(0, 1, 0), bounding_box, height_mm)
-            if foo:
-                diff = BRepAlgoAPI_Cut(face1_reference_solid, foo).Shape()
-                diff_mass = get_mass(diff)
-                if diff_mass < 0.1:
-                    final_cutting_extrusions.append(cutting_extrusion)
-            else:
-                pass
+        if ost_mass > 0.001:
+            # We only care about compounds with non-zero mass. If it has zero mass
+            # then this cutting extrusion cuts away the entire object. It was likely create
+            # from a face that covers the entire object, and We likely shouldn't remove it.
+            face1_valid = face_is_valid(temp_cut_compound, face1_vec, bounding_box, face1_reference_solid, height_mm)
+            face2_valid = face_is_valid(temp_cut_compound, face2_vec, bounding_box, face2_reference_solid, height_mm)
+            # temp_projected_compound = project_and_clamp(temp_cut_compound, face1_vec, bounding_box, height_mm)
+            # diff = BRepAlgoAPI_Cut(face1_reference_solid, temp_projected_compound).Shape()
+            # diff_mass = get_mass(diff)
+            # if diff_mass < 0.1:
+            if face2_valid:
+                # If this cut remove no mass from the POV of the face we are checking, then
+                # we know it won't alter the appearance and is safe to remove
+                final_cutting_extrusions.append(cutting_extrusion)
 
-    final_geom = compound_
+    final_geom = copy.deepcopy(compound_)
     for cut in final_cutting_extrusions:
         final_geom = BRepAlgoAPI_Cut(final_geom, cut).Shape()
 
