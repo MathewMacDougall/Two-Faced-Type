@@ -141,7 +141,7 @@ def get_nonperp_faces(faces, vec):
         normal_vec = gp_Vec(0, 0, 0)
         # TODO: how to get middle of face with UV mapping?
         gprop.Normal(0, 0, normal_point, normal_vec)
-        if abs(dot(gp_Vec(0, 1, 0), normal_vec)) > 0.01:
+        if abs(dot(vec, normal_vec)) > 0.01:
             nonperp_faces.append(face)
     return copy.deepcopy(nonperp_faces)
 
@@ -178,6 +178,8 @@ def project_and_clamp(compound, vec, containing_box, height_mm):
 
     all_faces = get_list_from_compound(compound_, CompoundSequenceType.FACE)
     nonperp_faces = get_nonperp_faces(all_faces, vec)
+    # for f in nonperp_faces:
+    #     display.DisplayShape(f, color=random_color())
     if not nonperp_faces:
         raise RuntimeError("No nonperp faces. This probably shouldn't happen.")
     magic_compound = extrude_and_clamp(nonperp_faces, vec, containing_box_, height_mm)
@@ -258,28 +260,24 @@ def _remove_redundant_geometry_helper(compound, height_mm):
     bounding_box = make_bounding_box(compound_)
     face1_vec = gp_Vec(0, 1, 0)
     face1_reference_solid = project_and_clamp(compound_, face1_vec, bounding_box, height_mm)
-    face2_vec = gp_Vec(0, -1, 0)
+    face2_vec = gp_Vec(-1, 0, 0)
     face2_reference_solid = project_and_clamp(compound_, face2_vec, bounding_box, height_mm)
 
     final_cutting_extrusions = []
     for cutting_extrusion in cutting_extrusions:
         temp_cut_compound = BRepAlgoAPI_Cut(compound_, cutting_extrusion).Shape()
 
-        ost_mass = get_mass(temp_cut_compound)
+        temp_cut_compound_mass = get_mass(temp_cut_compound)
 
-        if ost_mass > 0.001:
+        if temp_cut_compound_mass > 0.001:
             # We only care about compounds with non-zero mass. If it has zero mass
             # then this cutting extrusion cuts away the entire object. It was likely create
             # from a face that covers the entire object, and We likely shouldn't remove it.
             face1_valid = face_is_valid(temp_cut_compound, face1_vec, bounding_box, face1_reference_solid, height_mm)
             face2_valid = face_is_valid(temp_cut_compound, face2_vec, bounding_box, face2_reference_solid, height_mm)
-            # temp_projected_compound = project_and_clamp(temp_cut_compound, face1_vec, bounding_box, height_mm)
-            # diff = BRepAlgoAPI_Cut(face1_reference_solid, temp_projected_compound).Shape()
-            # diff_mass = get_mass(diff)
-            # if diff_mass < 0.1:
-            if face2_valid:
-                # If this cut remove no mass from the POV of the face we are checking, then
-                # we know it won't alter the appearance and is safe to remove
+            if face1_valid and face2_valid:
+                # If this cut removes no mass from the POV of the face(s) we are checking, then
+                # we know it won't alter their appearance and is safe to remove
                 final_cutting_extrusions.append(cutting_extrusion)
 
     final_geom = copy.deepcopy(compound_)
@@ -303,7 +301,7 @@ def main(word1, word2, height_mm, output_dir):
 
     letters, faces1, faces2 = combine_words(word1, word2, height_mm)
     letters = remove_redundant_geometry(letters, height_mm)
-    letters = offset_shapes(letters, height_mm)
+    # letters = offset_shapes(letters, height_mm)
 
     for letter in letters:
         display.DisplayShape(letter)
