@@ -1,5 +1,8 @@
 from OCC.Core.AIS import AIS_Shape
+import copy
 from OCC.Core.BRep import BRep_Builder
+from OCC.Core.ShapeExtend import ShapeExtend_Explorer
+from enum import Enum
 from OCC.Core.TopTools import TopTools_HSequenceOfShape
 from OCC.Extend.TopologyUtils import TopologyExplorer
 from OCCUtils.Common import random_color
@@ -25,26 +28,43 @@ import argparse
 from pathlib import Path
 import os
 import errno
+from OCC.Core.TopoDS import TopoDS_Compound, TopoDS_Solid, TopoDS_Shape, TopoDS_Face
 
 display, start_display, add_menu, add_function_to_menu = init_display()
 
+class CompoundSequenceType(Enum):
+    VERTEX = 0
+    EDGE = 1
+    FACE = 2
+    SOLID = 3
+
 def combine_faces(face1, face2, height_mm):
+    assert isinstance(face1, TopoDS_Face)
+    assert isinstance(face2, TopoDS_Face)
+
+    face1_ = copy.deepcopy(face1)
+    face2_ = copy.deepcopy(face2)
+
     # assuming both faces start in the XZ plane
     tf = gp_Trsf()
     # rotate from the XZ plane to the YZ plane
     tf.SetRotation(gp_Ax1(ORIGIN, DIR_Z), math.pi / 2)
-    face2 = BRepBuilderAPI_Transform(face2, tf).Shape()
+    face2_ = BRepBuilderAPI_Transform(face2_, tf).Shape()
 
     # We assume characters are no wider than they are tall, but just in case
     # we extrude by twice the height to make sure to capture all features
-    face1_extruded = make_extrusion(face1, 2 * height_mm, gp_Vec(0, 1, 0))
-    face2_extruded = make_extrusion(face2, 2 * height_mm, gp_Vec(1, 0, 0))
+    face1_extruded = make_extrusion(face1_, 2 * height_mm, gp_Vec(0, 1, 0))
+    face2_extruded = make_extrusion(face2_, 2 * height_mm, gp_Vec(1, 0, 0))
     common = BRepAlgoAPI_Common(face1_extruded, face2_extruded)
 
-    return common.Shape()
+    result = common.Shape()
+    assert isinstance(result, TopoDS_Compound)
+    return copy.deepcopy(result)
 
 
 def combine_words(word1, word2, height_mm):
+    assert isinstance(word1, str)
+    assert isinstance(word2, str)
     assert len(word1) == len(word2)
 
     combined_faces = []
@@ -55,8 +75,6 @@ def combine_words(word1, word2, height_mm):
         face2 = FaceFactory.create_char(letter2, height_mm)
         faces1.append(face1)
         faces2.append(face2)
-        # display.DisplayShape(face1, update=True, color="RED")
-        # display.DisplayShape(face2, update=True, color="RED")
         combined_letter = combine_faces(face1, face2, height_mm)
         combined_faces.append(combined_letter)
 
@@ -68,7 +86,9 @@ def combine_words(word1, word2, height_mm):
     offset_letters = []
     for l in combined_faces:
         tf.SetTranslation(p1, gp_Pnt(offset, offset, 0))
-        offset_letters.append(BRepBuilderAPI_Transform(l, tf).Shape())
+        offset_letter = BRepBuilderAPI_Transform(l, tf).Shape()
+        assert isinstance(offset_letter, TopoDS_Compound)
+        offset_letters.append(offset_letter)
         offset += offset_increment
 
     return offset_letters, faces1, faces2
@@ -89,27 +109,30 @@ def save_to_stl(shapes, dirpath=Path.home()):
         filepath = Path(dirpath, "combined_shape_" + str(index + 1) + ".stl")
         stl_writer.Write(shape, str(filepath))
 
-def face_width(face):
-    face_props = GlobalProperties(Face(face))
-    x1, _, _, x2, _, _ = face_props.bbox()
-    return abs(x2 - x1)-0.001 # subtract to hack away a plane at the end
 
-def solid_box(solid_):
-    props = GlobalProperties(solid_)
+def solid_box(compound):
+    assert isinstance(compound, TopoDS_Compound)
+    compound_ = copy.deepcopy(compound)
+    props = GlobalProperties(compound_)
     x1, y1, z1, x2, y2, z2 = props.bbox()
     p = gp_Pnt(x1, y1, z1)
     p2 = gp_Pnt(x2, y2, z2)
-    return BRepPrimAPI_MakeBox(p, p2).Shape()
+    result = BRepPrimAPI_MakeBox(p, p2).Shape()
+    assert isinstance(result, TopoDS_Solid)
+    return copy.deepcopy(result)
 
 def dot(v1, v2):
     assert isinstance(v1, gp_Vec)
     assert isinstance(v2, gp_Vec)
-    return v1.X() * v2.X() + v1.Y() * v2.Y() + v1.Z() * v2.Z()
+    result =  v1.X() * v2.X() + v1.Y() * v2.Y() + v1.Z() * v2.Z()
+    assert isinstance(result, float)
+    return result
 
 def get_nonperp_faces(vec, faces):
     assert isinstance(vec, gp_Vec)
     nonperp_faces = []
     for face in faces:
+        assert isinstance(face, TopoDS_Face)
         # display.DisplayShape(face, color="GREEN", transparency=0.8)
         gprop = BRepGProp_Face(face)
         normal_point = gp_Pnt(0, 0, 0)
@@ -118,44 +141,53 @@ def get_nonperp_faces(vec, faces):
         gprop.Normal(0, 0, normal_point, normal_vec)
         if abs(dot(gp_Vec(0, 1, 0), normal_vec)) > 0.01:
             nonperp_faces.append(face)
-    return nonperp_faces
+    return copy.deepcopy(nonperp_faces)
 
 def extrude_and_clamp(faces, vec, clamp, height_mm):
+    assert isinstance(clamp, TopoDS_Solid)
+    faces_ = copy.deepcopy(faces)
+    vec_ = copy.deepcopy(vec)
+    clamp_ = copy.deepcopy(clamp)
     extrusions = []
-    for face in faces:
-        extrusions.append(make_extrusion(face, 2 * height_mm, vec))
+    for face in faces_:
+        assert isinstance(face, TopoDS_Face)
+        extrusions.append(make_extrusion(face, 2 * height_mm, vec_))
     builder = BOPAlgo_Builder()
     for extrusion in extrusions:
         builder.AddArgument(extrusion)
-    builder.SetRunParallel(True)
+    builder.SetRunParallel(False)
     builder.Perform()
     if builder.HasErrors():
         raise AssertionError("Failed with error: ", builder.DumpErrorsToString())
-    result = builder.Shape()
-    return BRepAlgoAPI_Common(result, clamp).Shape()
+    extruded_faces = builder.Shape()
+    result = BRepAlgoAPI_Common(extruded_faces, clamp_).Shape()
+    assert isinstance(result, TopoDS_Compound)
+    return copy.deepcopy(result)
 
-def make_magic_solid(solid_, containing_box, height_mm):
-    exp = TopologyExplorer(solid_)
-    face1_nonperp_faces = get_nonperp_faces(gp_Vec(0, 1, 0), exp.faces())
-    print("nonperp faces: {}".format(len(face1_nonperp_faces)))
-    if not face1_nonperp_faces:
+def make_magic_solid(compound, containing_box, height_mm):
+    print("~~~ making magic solid")
+    assert isinstance(compound, TopoDS_Compound)
+    assert isinstance(containing_box, TopoDS_Solid)
+    compound_ = copy.deepcopy(compound)
+    containing_box_ = copy.deepcopy(containing_box)
+
+    all_faces = get_list_from_compound(compound_, CompoundSequenceType.FACE)
+    print("all faces: {}".format(len(all_faces)))
+    nonperp_faces = get_nonperp_faces(gp_Vec(0, 1, 0), all_faces)
+    print("nonperp faces: {}".format(len(nonperp_faces)))
+    if not nonperp_faces:
         raise RuntimeError("AAAAAAAH")
-        # print("ERROR")
-        # count = 0
-        # for e in exp.faces():
-        #     count += 1
-        # print("count ", count)
-        # # display.DisplayShape(solid)
-        # # start_display()
-        # return None
-    face1_reference_solid = extrude_and_clamp(face1_nonperp_faces, gp_Vec(0, 1, 0), containing_box, height_mm)
-    # display.DisplayShape(face1_reference_solid, color="BLUE", transparency=0.8)
-    return face1_reference_solid
+    magic_compound = extrude_and_clamp(nonperp_faces, gp_Vec(0, 1, 0), containing_box_, height_mm)
+    assert isinstance(magic_compound, TopoDS_Compound)
+    print("~~~ done making magic solid")
+    return copy.deepcopy(magic_compound)
 
-def get_mass(solid_):
-    from OCC.Core.ShapeExtend import ShapeExtend_Explorer
+
+def get_list_from_compound(compound, seq_type):
+    assert isinstance(seq_type, CompoundSequenceType)
+
     se_exp = ShapeExtend_Explorer()
-    hseqofshape = se_exp.SeqFromCompound(solid_, False)
+    hseqofshape = se_exp.SeqFromCompound(compound, True)
     hseq_vertices = TopTools_HSequenceOfShape()
     hseq_edges = TopTools_HSequenceOfShape()
     hseq_wires = TopTools_HSequenceOfShape()
@@ -166,40 +198,53 @@ def get_mass(solid_):
     hseq_compounds = TopTools_HSequenceOfShape()
     se_exp.DispatchList(hseqofshape, hseq_vertices, hseq_edges, hseq_wires, hseq_faces, hseq_shells, hseq_solids,
                         hseq_compsols, hseq_compounds)
-    count = 0
-    for i in range(hseq_solids.Length()):
-        count += 1
-    print("Found {} solids in the compound".format(count))
+
+    # Only the solids seem to be populated properly. Need to use TopologyExporer to get other features
+    solids = [hseq_solids.Value(i) for i in range(1, hseq_solids.Length() + 1)] # Indices start at 1 :(
+    faces = [f for solid in solids for f in TopologyExplorer(solid).faces()]
+    edges = [f for solid in solids for f in TopologyExplorer(solid).edges()]
+    vertices = [f for solid in solids for f in TopologyExplorer(solid).vertices()]
+
+    if seq_type == CompoundSequenceType.VERTEX:
+        return vertices
+    elif seq_type == CompoundSequenceType.EDGE:
+        return edges
+    elif seq_type == CompoundSequenceType.FACE:
+        return faces
+    elif seq_type == CompoundSequenceType.SOLID:
+        return solids
+    else:
+        raise ValueError("Invalid sequence type")
+
+
+def get_mass(solid_):
+    assert isinstance(solid_, TopoDS_Compound)
+    solids = get_list_from_compound(solid_, CompoundSequenceType.SOLID)
+    print("Found {} solids in the compound".format(len(solids)))
 
     total_mass = 0
-    for i in range(hseq_solids.Length()):
-        print(i)
-        # OH GOD INDICES START AT 1
-        s = hseq_solids.Value(i+1)
+    for solid in solids:
         props = GProp_GProps()
-        BRepGProp.brepgprop_VolumeProperties(s, props)
+        BRepGProp.brepgprop_VolumeProperties(solid, props)
         mass = props.Mass()
+        print("partial mass: ", mass)
         total_mass += mass
-    # foo = Solid(solid_)
-    # print("num shells: ", len(foo.shells()))
-    # print("mass type: ", type(mass))
-    print("solid type: ", type(solid_))
-    print("mass ", total_mass)
+    print("total mass ", total_mass)
     return total_mass
 
 def remove_redundant_geometry(solid, face1, face2, height_mm):
+    assert isinstance(solid, TopoDS_Compound)
+    assert isinstance(face1, TopoDS_Face)
+    assert isinstance(face2, TopoDS_Face)
+
     bounding_box = solid_box(solid)
     face1_reference_solid = make_magic_solid(solid, bounding_box, height_mm)
     # display.DisplayShape(face1_reference_solid)
 
-    # TODO: You are here. Think issue might be because I'm treating Compounds as single solids
-    # Need to make sure I'm getting all solids in the compound and using those instead. Likely need ot replace a lot of stuff
-
-    exp = TopologyExplorer(solid)
-    total_num_faces = len([face for face in exp.faces()])
-    print("total num faces: {}".format(total_num_faces))
+    faces = get_list_from_compound(solid, CompoundSequenceType.FACE)
+    print("total num faces: {}".format(len(faces)))
     cutting_extrusions = []
-    for face in exp.faces():
+    for face in faces:
         gprop = BRepGProp_Face(face)
         normal_point = gp_Pnt(0, 0, 0)
         normal_vec = gp_Vec(0, 0, 0)
@@ -209,62 +254,58 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
         normal_extrusion = make_extrusion(face, height_mm, normal_vec_reversed)
         cutting_extrusions.append(normal_extrusion)
 
+    # NOTES:
+    # the display statement is causing foo to change (the magic solid for the temp piece)
+    # issue seems to be specifically in make_magic_solid function. Everything else works as expected / the optimized_solid_temp shape is ok
+    # IDEA: does an odd number of faces result in no extrusion? Do they cancel out?
+    # non-perp faces seem to be the same...
+    # containing box is the same
+    # magic-extrusions seem to be the same...
+
     print("len cutting extrusions: {}".format(len(cutting_extrusions)))
     final_cutting_extrusions = []
     for index, cutting_extrusion in enumerate(cutting_extrusions):
         optimized_solid_temp = BRepAlgoAPI_Cut(solid, cutting_extrusion).Shape()
 
-        # from OCC.Core.ShapeExtend import ShapeExtend_Explorer
-        # se_exp = ShapeExtend_Explorer()
-        # hseqofshape = se_exp.SeqFromCompound(optimized_solid_temp, False)
-        # hseq_vertices = TopTools_HSequenceOfShape()
-        # hseq_edges = TopTools_HSequenceOfShape()
-        # hseq_wires = TopTools_HSequenceOfShape()
-        # hseq_faces = TopTools_HSequenceOfShape()
-        # hseq_shells = TopTools_HSequenceOfShape()
-        # hseq_solids = TopTools_HSequenceOfShape()
-        # hseq_compsols = TopTools_HSequenceOfShape()
-        # hseq_compounds = TopTools_HSequenceOfShape()
-        # se_exp.DispatchList(hseqofshape, hseq_vertices, hseq_edges, hseq_wires, hseq_faces, hseq_shells, hseq_solids, hseq_compsols, hseq_compounds)
-
-
-
-
         ost_mass = get_mass(optimized_solid_temp)
         # print("ost mass: {}".format(ost_mass))
         if index == 17:
-            # display.DisplayShape(optimized_solid_temp, color="CYAN", transparency=1.0)
+            # display.DisplayShape(optimized_solid_temp, color="CYAN", transparency=1.0) # This varies the problem
             # display.DisplayShape(cutting_extrusion, color="BLACK", transparency=0.8)
             print("\n\n\n{} index ost_mass: {}".format(index, ost_mass))
             # continue
 
-        if ost_mass < 0.001:
+        if ost_mass < 1.001:
             # The face we're operating on is likely an entire face. Definitely can't remove it
             # print("{} OST MASS SMALL".format(index))
             pass
         else:
             foo = make_magic_solid(optimized_solid_temp, bounding_box, height_mm)
+            # testvar33 = BRepAlgoAPI_Common(magic_extruded_faces, magic_clamp).Shape()
+            # foo = copy.deepcopy(testvar33)
             if foo:
-                # print("{} magic solid".format(index))
                 diff = BRepAlgoAPI_Cut(face1_reference_solid, foo).Shape()
                 # display.DisplayShape(diff, color="RED", transparency=0.8)
                 diff_mass = get_mass(diff)
                 if index == 17:
-                    # display.DisplayShape(foo, color="BLUE", transparency=0.8)
+                    # display.DisplayShape(foo, transparency=0.5)
+                    # display.DisplayShape(magic_containing_box, color="BLUE", transparency=0.8)
+                    # display.DisplayShape(magic_extruded_faces, color="BLUE", transparency=0.8)
+                    # display.DisplayShape(magic_clamp, color="RED", transparency=1.0)
+                    # testvar = BRepAlgoAPI_Common(magic_extruded_faces, magic_clamp).Shape()
+                    # display.DisplayShape(testvar, transparency=0.5)
+                    # display.DisplayShape(magic_clamp, color="RED", transparency=0.8)
+                    # for me in magic_extrusions:
+                    #     display.DisplayShape(me, color=random_color(), transparency=0.8)
+                    # for npf in nonperp_faces:
+                    #     display.DisplayShape(npf, color="BLUE", transparency=0.8)
+                    # display.DisplayShape(optimized_solid_temp, color="BLUE", transparency=0.8)
+                    # display.DisplayShape(face1_reference_solid, color="BLUE", transparency=0.8)
                     # display.DisplayShape(diff, color="RED", transparency=0.8)
                     print("{} diff_mass: {}".format(index, diff_mass))
-                # print("{}: MASS: {}".format(index, diff_mass))
                 if diff_mass < 0.1:
                     final_cutting_extrusions.append(cutting_extrusion)
-
-            # if diff_mass > 0.1:
-                #     # print("{} foo".format(index))
-                #     pass
-                # else:
-                #     print("{} adding final cutting extrusion".format(index))
-                #     final_cutting_extrusions.append(cutting_extrusion)
             else:
-                # print("{} no magic solid".format(index))
                 pass
         if index == 17:
             print("\n\n\n")
@@ -274,7 +315,7 @@ def remove_redundant_geometry(solid, face1, face2, height_mm):
     for cut in final_cutting_extrusions:
         final_geom = BRepAlgoAPI_Cut(final_geom, cut).Shape()
 
-    # display.DisplayShape(final_geom, update=True, color="GREEN", transparency=0.9)
+    display.DisplayShape(final_geom, update=True, color="GREEN", transparency=0.9)
     print("FACES REMOVED: {}".format(len(final_cutting_extrusions)))
     return None
 
