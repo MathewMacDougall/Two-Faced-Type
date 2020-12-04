@@ -116,8 +116,9 @@ def make_bounding_box(compound):
     compound_ = copy.deepcopy(compound)
     props = GlobalProperties(compound_)
     x1, y1, z1, x2, y2, z2 = props.bbox()
-    p = gp_Pnt(x1, y1, z1)
-    p2 = gp_Pnt(x2, y2, z2)
+    fudge_factor = 0.001
+    p = gp_Pnt(x1-fudge_factor, y1-fudge_factor, z1-fudge_factor)
+    p2 = gp_Pnt(x2+fudge_factor, y2+fudge_factor, z2+fudge_factor)
     result = BRepPrimAPI_MakeBox(p, p2).Shape()
     assert isinstance(result, TopoDS_Solid)
     return copy.deepcopy(result)
@@ -152,21 +153,46 @@ def extrude_and_clamp(faces, vec, clamp, height_mm):
     vec_ = copy.deepcopy(vec)
     clamp_ = copy.deepcopy(clamp)
 
+    # for f in faces:
+    #     display.DisplayShape(f, color=random_color(), transparency=0.8)
+
     extrusions = []
     for face in faces_:
         assert isinstance(face, TopoDS_Face)
         extrusions.append(make_extrusion(face, 2 * height_mm, vec_))
 
+    # for e in extrusions:
+        # display.DisplayShape(e, color=random_color(), transparency=0.8)
+
+    # for e in extrusions:
+    #     display.DisplayShape(e, transparency=0.7, color=random_color())
     builder = BOPAlgo_Builder()
     for extrusion in extrusions:
         builder.AddArgument(extrusion)
-    builder.SetRunParallel(False)
+        # display.DisplayShape(extrusion, color=random_color(), transparency=0.8)
+    builder.SetRunParallel(True)
     builder.Perform()
     if builder.HasErrors():
         raise AssertionError("Failed to combine extrusions. AlgoBuilder failed with error: ", builder.DumpErrorsToString())
     extruded_faces = builder.Shape()
+    print("build shape type: {}".format(type(extruded_faces)))
+    # display.DisplayShape(extruded_faces, color=random_color(), transparency=0.8)
+    # display.DisplayShape(clamp, color=random_color(), transparency=0.95)
 
-    result = BRepAlgoAPI_Common(extruded_faces, clamp_).Shape()
+    # box = BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 100., 50., 100).Shape()
+    # display.DisplayShape(box, color=random_color(), transparency=0.9)
+    # display.DisplayShape(clamp_, color=random_color(), transparency=0.9)
+    # result = BRepAlgoAPI_Common(extruded_faces, clamp_).Shape()
+    # result = BRepAlgoAPI_Common(clamp_, extruded_faces).Shape()
+    # result = BRepAlgoAPI_Common(box, extruded_faces).Shape()
+    result = BRepAlgoAPI_Common(clamp_, extruded_faces).Shape()
+    # result = BRepAlgoAPI_Fuse(clamp_, extruded_faces).Shape()
+    # result = BRepAlgoAPI_Cut(clamp_, extruded_faces).Shape()
+    # display.DisplayShape(result, color=random_color(), transparency=0.6)
+
+    # if not isinstance(result, TopoDS_Compound):
+    #     display.DisplayShape(extruded_faces, transparency=0.8)
+    #     display.DisplayShape(clamp_, color="WHITE", transparency=0.8)
     assert isinstance(result, TopoDS_Compound)
     return copy.deepcopy(result)
 
@@ -178,8 +204,6 @@ def project_and_clamp(compound, vec, containing_box, height_mm):
 
     all_faces = get_list_from_compound(compound_, CompoundSequenceType.FACE)
     nonperp_faces = get_nonperp_faces(all_faces, vec)
-    # for f in nonperp_faces:
-    #     display.DisplayShape(f, color=random_color())
     if not nonperp_faces:
         raise RuntimeError("No nonperp faces. This probably shouldn't happen.")
     magic_compound = extrude_and_clamp(nonperp_faces, vec, containing_box_, height_mm)
@@ -258,13 +282,20 @@ def _remove_redundant_geometry_helper(compound, height_mm):
         cutting_extrusions.append(normal_extrusion)
 
     bounding_box = make_bounding_box(compound_)
-    face1_vec = gp_Vec(0, 1, 0)
-    face1_reference_solid = project_and_clamp(compound_, face1_vec, bounding_box, height_mm)
+    # face1_vec = gp_Vec(0, 1, 0)
+    # face1_reference_solid = project_and_clamp(compound_, face1_vec, bounding_box, height_mm)
+    # display.DisplayShape(face1_reference_solid)
+    # return None
     face2_vec = gp_Vec(-1, 0, 0)
     face2_reference_solid = project_and_clamp(compound_, face2_vec, bounding_box, height_mm)
 
+    # TODO: YOu are here. Fixed bug with the G curves being ignored (bounding box size)
+    # Now the E face errors about 0.25 of the way through. Need ot find out why.
+    # maybe not getting perp faces right?
+
     final_cutting_extrusions = []
-    for cutting_extrusion in cutting_extrusions:
+    for index, cutting_extrusion in enumerate(cutting_extrusions):
+        print("cutting extrusion... {}".format(index / len(cutting_extrusions)))
         temp_cut_compound = BRepAlgoAPI_Cut(compound_, cutting_extrusion).Shape()
 
         temp_cut_compound_mass = get_mass(temp_cut_compound)
@@ -273,8 +304,10 @@ def _remove_redundant_geometry_helper(compound, height_mm):
             # We only care about compounds with non-zero mass. If it has zero mass
             # then this cutting extrusion cuts away the entire object. It was likely create
             # from a face that covers the entire object, and We likely shouldn't remove it.
-            face1_valid = face_is_valid(temp_cut_compound, face1_vec, bounding_box, face1_reference_solid, height_mm)
+            # face1_valid = face_is_valid(temp_cut_compound, face1_vec, bounding_box, face1_reference_solid, height_mm)
+            face1_valid = True
             face2_valid = face_is_valid(temp_cut_compound, face2_vec, bounding_box, face2_reference_solid, height_mm)
+            # face2_valid = True
             if face1_valid and face2_valid:
                 # If this cut removes no mass from the POV of the face(s) we are checking, then
                 # we know it won't alter their appearance and is safe to remove
@@ -300,11 +333,16 @@ def main(word1, word2, height_mm, output_dir):
     display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
 
     letters, faces1, faces2 = combine_words(word1, word2, height_mm)
-    letters = remove_redundant_geometry(letters, height_mm)
+    try:
+        letters = remove_redundant_geometry(letters, height_mm)
+    except:
+        print("ERROR")
+        pass
     # letters = offset_shapes(letters, height_mm)
 
     for letter in letters:
-        display.DisplayShape(letter)
+        if letter:
+            display.DisplayShape(letter)
 
     # save_to_stl(letters, output_dir)
 
