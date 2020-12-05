@@ -16,8 +16,24 @@ logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
 class FaceFactory():
+    def __init__(self, face_images_dir):
+        self._face_images_dir = face_images_dir
+        assert face_images_dir.is_dir()
+
+    def create_char(self, char, height_mm):
+        if not char.isalnum():
+            raise ValueError("Unable to create face from char: '{}'. Only alphanumeric characters are supported".format(char))
+
+        char = char.upper()
+
+        char_image_file = self._face_images_dir / "{}.svg".format(char)
+        assert char_image_file.is_file()
+
+        return self._create_from_svg(char_image_file, height_mm)
+
+
     @classmethod
-    def create_from_image(cls, filepath, height_mm):
+    def _create_from_image(cls, filepath, height_mm):
         assert isinstance(filepath, pathlib.Path)
         if not filepath.is_file():
             raise IOError("Unable to create Face from image file: {}. File does not exist".format(filepath))
@@ -29,20 +45,7 @@ class FaceFactory():
                 "Unable to create Face from image file: {}. Unsupported filetype {}. Please use one of {}".format(
                     filepath, filepath.suffix, "svg"))
 
-    @classmethod
-    def create_char(cls, char, height_mm):
-        if not char.isalnum():
-            raise ValueError("Unable to create face from char: '{}'. Only alphanumeric characters are supported".format(char))
 
-        char = char.upper()
-
-        face_images_dir = pathlib.Path(__file__).parent / "face_images/aldrich"
-        assert face_images_dir.is_dir()
-
-        char_image_file = face_images_dir / "{}.svg".format(char)
-        assert char_image_file.is_file()
-
-        return cls._create_from_svg(char_image_file, height_mm)
 
     @classmethod
     def _create_from_svg(cls, filepath, height_mm):

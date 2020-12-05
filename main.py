@@ -1,5 +1,7 @@
 from OCC.Core.AIS import AIS_Shape
+import pathlib
 import copy
+import logging
 from OCC.Core.BRep import BRep_Builder
 from OCC.Core.GC import GC_MakeArcOfCircle, GC_MakeSegment
 from OCC.Core.ShapeAnalysis import ShapeAnalysis_Surface
@@ -32,6 +34,9 @@ import os
 import errno
 from OCC.Core.TopoDS import TopoDS_Compound, TopoDS_Solid, TopoDS_Shape, TopoDS_Face
 
+logger = logging.getLogger("TFT")
+logger.setLevel(logging.DEBUG)
+
 display, start_display, add_menu, add_function_to_menu = init_display()
 
 class CompoundSequenceType(Enum):
@@ -62,7 +67,7 @@ def combine_faces(face1, face2, height_mm):
     return copy.deepcopy(result)
 
 
-def combine_words(word1, word2, height_mm):
+def combine_words(word1, word2, face_factory, height_mm):
     assert isinstance(word1, str)
     assert isinstance(word2, str)
     assert len(word1) == len(word2)
@@ -71,8 +76,8 @@ def combine_words(word1, word2, height_mm):
     faces1 = []
     faces2 = []
     for letter1, letter2 in zip(word1, word2):
-        face1 = FaceFactory.create_char(letter1, height_mm)
-        face2 = FaceFactory.create_char(letter2, height_mm)
+        face1 = face_factory.create_char(letter1, height_mm)
+        face2 = face_factory.create_char(letter2, height_mm)
         faces1.append(face1)
         faces2.append(face2)
         combined_letter = combine_faces(face1, face2, height_mm)
@@ -176,7 +181,8 @@ def get_nonperp_faces(faces, vec, disp=False):
             #     display.DisplayShape(face, color=c, transparency=0.6)
             #     display.DisplayShape(normal_point, color=c)
         else:
-            print("DOT PRODUCT VALUE: {}".format(abs(dot(vec, normal_vec))))
+            pass
+            # print("DOT PRODUCT VALUE: {}".format(abs(dot(vec, normal_vec))))
     return copy.deepcopy(nonperp_faces)
 
 def extrude_and_clamp(faces, vec, clamp, height_mm):
@@ -186,245 +192,78 @@ def extrude_and_clamp(faces, vec, clamp, height_mm):
     vec_ = copy.deepcopy(vec)
     clamp_ = copy.deepcopy(clamp)
 
-    # for f in faces:
-    #     display.DisplayShape(f, color=random_color(), transparency=0.8)
-
     extrusions = []
     for face in faces_:
         assert isinstance(face, TopoDS_Face)
         ext = make_extrusion(face, 2 * height_mm, vec_)
-        # display.DisplayShape(ext, color=random_color(), transparency=0.6)
         extrusions.append(ext)
 
     clamped_extrusions = []
     for e in extrusions:
         ee = BRepAlgoAPI_Common(clamp_, e).Shape()
-        # tf = gp_Trsf()
-        # tf.SetScaleFactor(1 + 1e-6)
-        # eee = copy.deepcopy(BRepBuilderAPI_Transform(ee, tf).Shape())
-        # display.DisplayShape(ee, color=random_color(), transparency=0.6)
         clamped_extrusions.append(copy.deepcopy(ee))
 
-    aRes = TopoDS_Compound()
-    aBuilder = BRep_Builder()
-    aBuilder.MakeCompound(aRes)
-    for e in clamped_extrusions:
-        aBuilder.Add(aRes, e)
-    print("res ", aRes)
-    # display.DisplayShape(aRes, color="CYAN", transparency=0.8)
-    solids = get_list_from_compound(aRes, CompoundSequenceType.SOLID)
-    # s1 = solids[0]
-    # s2 = solids[1]
-    # s3 = solids[2]
-    # print(get_mass(s1))
-    # print(get_mass(s2))
-    # print(get_mass(s3))
-    # display.DisplayShape(s1, color="RED")
-    # display.DisplayShape(s2, color="BLUE")
-    # display.DisplayShape(s3, color="WHITE")
-    result = clamped_extrusions[0]
+    # aRes = TopoDS_Compound()
+    # aBuilder = BRep_Builder()
+    # aBuilder.MakeCompound(aRes)
+    # for e in clamped_extrusions:
+    #     aBuilder.Add(aRes, e)
+    # print("res ", aRes)
+
+    result = copy.deepcopy(clamped_extrusions[0])
     failed_fuses = []
     for s in clamped_extrusions[1:]:
-        # tf = gp_Trsf()
-        # # tf.SetScaleFactor(1 + 1e-2)
-        # tf.SetTranslation(gp_Vec(0, 0, -0.001))
-        # ss = BRepBuilderAPI_Transform(s, tf).Shape()
-        test_result = BRepAlgoAPI_Fuse(copy.deepcopy(result), s).Shape()
-        # test_result2 = BRepAlgoAPI_Fuse(copy.deepcopy(result), ss).Shape()
-        # if test_result is not None:
-        #     print("using test result")
-        #     result = test_result
-        # elif test_result2 is not None:
-        #     print("using test result 2")
-        #     result = test_result2
-        # else:
-        #     print("Error. Both results were None")
-        # print("loop")
+        test_result = BRepAlgoAPI_Fuse(copy.deepcopy(result), copy.deepcopy(s)).Shape()
         if test_result is None:
-            # tf = gp_Trsf()
-            # # tf.SetScaleFactor(1 + 1e-2)
-            # tf.SetTranslation(gp_Vec(0, 0, -0.001))
-            # ss = copy.deepcopy(BRepBuilderAPI_Transform(s, tf).Shape())
-            # testresult2 = BRepAlgoAPI_Fuse(copy.deepcopy(result), ss).Shape()
-            # print("testresult2: ", testresult2)
-            # if testresult2 is not None:
-            #     result = testresult2
-            # else:
-            failed_fuses.append(s)
+            failed_fuses.append(copy.deepcopy(s))
         else:
-            result = test_result
-    display.DisplayShape(result, transparency=0.8)
+            result = copy.deepcopy(test_result)
+    # display.DisplayShape(result, transparency=0.8)
     fixed_result = copy.deepcopy(result)
     double_failed_fuses = []
-    print("{} failed fuses".format(len(failed_fuses)))
+    if failed_fuses:
+        logger.warning("Failed fuses: {}".format(len(failed_fuses)))
+        # print("{} failed fuses".format(len(failed_fuses)))
     for fs in failed_fuses:
         tf = gp_Trsf()
-        # tf.SetTranslation(gp_Vec(0, 0, -0.0001))
-        tf.SetScaleFactor(1 + 1e-6)
-        fs = BRepBuilderAPI_Transform(fs, tf).Shape()
-        tt1 = BRepAlgoAPI_Fuse(fixed_result, fs)
-        tt1.SetFuzzyValue(100.001)
-        tt1.SetCheckInverted(True)
+        tf.SetTranslation(gp_Vec(0, 0, 0.001))
+        # tf.SetScaleFactor(1.0 + 1e-12)
+        fs = BRepBuilderAPI_Transform(copy.deepcopy(fs), tf).Shape()
+        tt1 = BRepAlgoAPI_Fuse(copy.deepcopy(fixed_result), copy.deepcopy(fs))
+        tt1.SetFuzzyValue(1.0)
+        tt1.SetCheckInverted(False)
         tt1.SetNonDestructive(False)
         if tt1.Shape() is not None:
-            fixed_result = tt1.Shape()
+            fixed_result = copy.deepcopy(tt1.Shape())
         else:
-            double_failed_fuses.append(fs)
-    print("{} recovered fuses".format(len(failed_fuses)-len(double_failed_fuses)))
-    print("{} double failed fuses".format(len(double_failed_fuses)))
-    display.DisplayShape(fixed_result, color="BLUE", transparency=0.8)
+            tf = gp_Trsf()
+            tf.SetTranslation(gp_Vec(0, 0, -0.001))
+            # tf.SetScaleFactor(1.0 + 1e-12)
+            fs2 = BRepBuilderAPI_Transform(copy.deepcopy(fs), tf).Shape()
+            tt2 = BRepAlgoAPI_Fuse(copy.deepcopy(fixed_result), copy.deepcopy(fs2))
+            tt2.SetFuzzyValue(1.0)
+            tt2.SetCheckInverted(False)
+            tt2.SetNonDestructive(False)
+            if tt2.Shape() is not None:
+                fixed_result = copy.deepcopy(tt2.Shape())
+            else:
+                double_failed_fuses.append(copy.deepcopy(fs))
 
+    if failed_fuses:
+        logger.warning("Recovered fuses: {}".format(len(failed_fuses)-len(double_failed_fuses)))
+        logger.warning("Doubly-failed fuses: {}".format(len(double_failed_fuses)))
+        # print("{} recovered fuses".format(len(failed_fuses)-len(double_failed_fuses)))
+        # print("{} double failed fuses".format(len(double_failed_fuses)))
+    # display.DisplayShape(fixed_result, color="BLUE", transparency=0.8)
+    if double_failed_fuses:
+        # display.DisplayShape(result, transparency=0.8)
+        for f in double_failed_fuses:
+            display.DisplayShape(f, color="RED")
+        start_display()
+        exit(0)
 
-        # display.DisplayShape(fs, color="RED")
-    # fs1 = failed_fuses[0]
-    # tf = gp_Trsf()
-    # # tf.SetTranslation(gp_Vec(0, 0, -0.0001))
-    # tf.SetScaleFactor(1+1e-6)
-    # fs1 = BRepBuilderAPI_Transform(fs1, tf).Shape()
-    # fs2 = failed_fuses[1]
-    # tt1 = BRepAlgoAPI_Fuse(result, fs1)
-    # tt1.SetFuzzyValue(100.001)
-    # tt1.SetCheckInverted(True)
-    # tt1.SetNonDestructive(False)
-    # tt2 = BRepAlgoAPI_Fuse(result, fs2)
-    # tt3 = BRepAlgoAPI_Fuse(fs1, fs2)
-    # display.DisplayShape(fs1, color="RED")
-    # display.DisplayShape(fs2, color="RED")
-    # print("tt1: ", tt1.Shape())
-    # display.DisplayShape(tt1.Shape())
-    # print("tt2: ", tt2.Shape())
-    # print("tt3: ", tt3.Shape())
-    # tt4 = BRepAlgoAPI_Fuse(tt3.Shape(), result)
-    # tt4.CHe
-    # print(tt4.Shape())
+    return copy.deepcopy(fixed_result)
 
-    # s2 = solids[6]
-    # display.DisplayShape(s2, color="RED")
-    # fused = BRepAlgoAPI_Fuse(result, s2).Shape()
-    # print("fused: ", fused)
-
-    # result = BRepAlgoAPI_Common(clamp_, aRes).Shape()
-    # result = BRepAlgoAPI_Fuse(s1, s2).Shape()
-    start_display()
-    exit(0)
-    return copy.deepcopy(aRes)
-
-    # for e in extrusions:
-        # display.DisplayShape(e, color=random_color(), transparency=0.8)
-
-    # for e in extrusions:
-    #     display.DisplayShape(e, transparency=0.7, color=random_color())
-
-    # Tyring alternative builder algos
-    # builder = BOPAlgo_Builder()
-    # for extrusion in extrusions:
-    #     builder.AddArgument(extrusion)
-    #     # display.DisplayShape(extrusion, color=random_color(), transparency=0.8)
-    # builder.SetRunParallel(False)
-    # builder.Perform()
-    # if builder.HasErrors():
-    #     # for extrusion in extrusions:
-    #     #     display.DisplayShape(extrusion, color=random_color(), transparency=0.8)
-    #     for f in faces:
-    #         display.DisplayShape(f, color=random_color(), transparency=0.6)
-    #     print("ABOUT TO FAIL")
-    #     start_display()
-    #     raise AssertionError("Failed to combine extrusions. AlgoBuilder failed with error: ", builder.DumpErrorsToString())
-    # extruded_faces = builder.Shape()
-
-
-    # result = copy.deepcopy(clamp_)
-    # newlist = []
-    # for e in extrusions:
-    #     newlist.append(copy.deepcopy(BRepAlgoAPI_Common(result, e).Shape()))
-
-    # https://github.com/tpaviot/pythonocc-core/issues/641
-    # from OCC.Core.TopTools import TopTools_ListOfShape
-    # bool_op = BRepAlgoAPI_Fuse()
-    # args = TopTools_ListOfShape()
-    # for e in extrusions:
-    #     args.Append(e)
-    # # args.Append(extrusions[0])
-    # tools = TopTools_ListOfShape()
-    # tools.Append(clamp_)
-    # bool_op.SetArguments(args)
-    # bool_op.SetTools(tools)
-    # bool_op.SetFuzzyValue(0.1)
-    # realresult = bool_op.Build()
-    # print(realresult)
-    # start_display()
-    # display.DisplayShape(realresult.Shape())
-
-
-    # real_result = newlist[0]
-    # real_result = extrusions[0]
-    # display.DisplayShape(real_result)
-    # for rr in extrusions[1:2]:
-    #     fuser = BRepAlgoAPI_Fuse(real_result, rr)
-    #     fuser.SetFuzzyValue(1.1)
-    #     foo = fuser.Build()
-    #     print("foo null?: {}".format(foo is None))
-    #     display.DisplayShape(real_result, color="RED", transparency=0.7)
-    start_display()
-    # for qq in newlist:
-    #     display.DisplayShape(qq)
-
-    # builder = BOPAlgo_Builder()
-    # for qq in newlist:
-    #     builder.AddArgument(qq)
-    #     # display.DisplayShape(extrusion, color=random_color(), transparency=0.8)
-    # builder.SetRunParallel(False)
-    # builder.Perform()
-    # if builder.HasErrors():
-    #     # for extrusion in extrusions:
-    #     #     display.DisplayShape(extrusion, color=random_color(), transparency=0.8)
-    #     # for f in faces:
-    #     #     display.DisplayShape(f, color=random_color(), transparency=0.6)
-    #     print("ABOUT TO FAIL AGAIN")
-    #     start_display()
-    #     raise AssertionError("Failed to combine extrusions. AlgoBuilder failed with error: ", builder.DumpErrorsToString())
-    # extruded_faces = builder.Shape()
-    # display.DisplayShape(extruded_faces)
-
-
-    # display.DisplayShape(result)
-    start_display()
-    # BRepAlgoAPI_Common(clamp_, extruded_faces).Shape()
-
-    # extruded_faces = extrusions[0]
-    # for e in extrusions[1:]:
-    #     extruded_faces = BRepAlgoAPI_Fuse(extruded_faces, e).Shape()
-    print("build shape type: {}".format(type(result)))
-
-
-
-
-
-
-
-    # display.DisplayShape(extruded_faces, color=random_color(), transparency=0.8)
-    # display.DisplayShape(clamp, color=random_color(), transparency=0.95)
-
-    # box = BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 100., 50., 100).Shape()
-    # display.DisplayShape(box, color=random_color(), transparency=0.9)
-    # display.DisplayShape(clamp_, color=random_color(), transparency=0.9)
-    # result = BRepAlgoAPI_Common(extruded_faces, clamp_).Shape()
-    # result = BRepAlgoAPI_Common(clamp_, extruded_faces).Shape()
-    # result = BRepAlgoAPI_Common(box, extruded_faces).Shape()
-    result = BRepAlgoAPI_Common(clamp_, extruded_faces).Shape()
-    # result = BRepAlgoAPI_Fuse(clamp_, extruded_faces).Shape()
-    # result = BRepAlgoAPI_Cut(clamp_, extruded_faces).Shape()
-    # display.DisplayShape(result, color=random_color(), transparency=0.6)
-
-    # if not isinstance(result, TopoDS_Compound):
-    #     display.DisplayShape(extruded_faces, transparency=0.8)
-    #     display.DisplayShape(clamp_, color="WHITE", transparency=0.8)
-    assert isinstance(result, TopoDS_Compound)
-
-    # for f in faces:
-    #     display.DisplayShape(f, color=random_color(), transparency=0.6)
-    # start_display()
-    return copy.deepcopy(result)
 
 def project_and_clamp(compound, vec, containing_box, height_mm, disp=False):
     assert isinstance(compound, TopoDS_Compound)
@@ -482,7 +321,8 @@ def get_list_from_compound(compound, sequence_type):
 
 
 def get_mass(compound):
-    assert isinstance(compound, TopoDS_Compound) or isinstance(compound, TopoDS_Solid)
+    if not (isinstance(compound, TopoDS_Compound) or isinstance(compound, TopoDS_Solid)):
+        raise RuntimeError("bad mass instance type")
     compound_ = copy.deepcopy(compound)
 
     if isinstance(compound, TopoDS_Compound):
@@ -504,8 +344,16 @@ def remove_redundant_geometry(shapes, height_mm):
 
 def face_is_valid(temp_cut_compound_, vec_, bounding_box_, reference_solid, height_mm):
     temp_projected_compound = project_and_clamp(temp_cut_compound_, vec_, bounding_box_, height_mm, disp=True)
-    diff = BRepAlgoAPI_Cut(reference_solid, temp_projected_compound).Shape()
-    diff_mass = get_mass(diff)
+    diff = BRepAlgoAPI_Cut(reference_solid, temp_projected_compound)
+    diff.SetNonDestructive(False)
+    diff.SetCheckInverted(False)
+    diff.SetFuzzyValue(1.01)
+    diffff = diff.Shape()
+    if diffff is None:
+        # display.DisplayShape(reference_solid, color="BLUE", transparency=0.8)
+        display.DisplayShape(temp_projected_compound, color="RED", transparency=0.8)
+        start_display()
+    diff_mass = get_mass(diffff)
     return diff_mass < 0.1
 
 def _remove_redundant_geometry_helper(compound, height_mm):
@@ -532,7 +380,7 @@ def _remove_redundant_geometry_helper(compound, height_mm):
     # return None
     face2_vec = gp_Vec(-1, 0, 0)
     face2_reference_solid = project_and_clamp(compound_, face2_vec, bounding_box, height_mm)
-    start_display()
+    # start_display()
 
     # TODO: YOu are here. Fixed bug with the G curves being ignored (bounding box size)
     # Now the E face errors about 0.25 of the way through. Need ot find out why.
@@ -580,7 +428,10 @@ def main(word1, word2, height_mm, output_dir):
     display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
     display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
 
-    letters, faces1, faces2 = combine_words(word1, word2, height_mm)
+    face_images_dir = pathlib.Path(__file__).parent / "face_images/aldrich"
+    face_factory = FaceFactory(face_images_dir)
+
+    letters, faces1, faces2 = combine_words(word1, word2, face_factory, height_mm)
     letters = remove_redundant_geometry(letters, height_mm)
     try:
         letters = remove_redundant_geometry(letters, height_mm)
@@ -598,46 +449,6 @@ def main(word1, word2, height_mm, output_dir):
 
     # save_to_stl(letters, output_dir)
 
-    start_display()
-
-def test_bad_fusion():
-    height = 70
-    width = 50
-    thickness = 30
-
-    print("creating bottle")
-    # The points we'll use to create the profile of the bottle's body
-    aPnt1 = gp_Pnt(0, 0, 0)
-    aPnt2 = gp_Pnt(50, 0, 0)
-    aPnt3 = gp_Pnt(60, 0, 10)
-    aPnt4 = gp_Pnt(70, 0, 20)
-    aPnt5 = gp_Pnt(70, 0, 50)
-    aPnt6 = gp_Pnt(60, 0, 60)
-    aPnt7 = gp_Pnt(50, 0, 70)
-    aPnt8 = gp_Pnt(0, 0, 70)
-    # aPnt4 = gp_Pnt(width / 2.0, -thickness / 4.0, 0)
-    # aPnt5 = gp_Pnt(width / 2.0, 0, 0)
-
-    aSegment1 = GC_MakeSegment(aPnt1, aPnt2)
-    aArcOfCircle = GC_MakeArcOfCircle(aPnt2, aPnt3, aPnt4)
-    aSegment2 = GC_MakeSegment(aPnt4, aPnt5)
-    aArcOfCircle2 = GC_MakeArcOfCircle(aPnt5, aPnt6, aPnt7)
-    aSegment3 = GC_MakeSegment(aPnt7, aPnt8)
-
-    # Could also construct the line edges directly using the points instead of the resulting line
-    aEdge1 = BRepBuilderAPI_MakeEdge(aSegment1.Value())
-    aEdge2 = BRepBuilderAPI_MakeEdge(aArcOfCircle.Value())
-    aEdge3 = BRepBuilderAPI_MakeEdge(aSegment2.Value())
-    aEdge4 = BRepBuilderAPI_MakeEdge(aArcOfCircle2.Value())
-    aEdge5 = BRepBuilderAPI_MakeEdge(aSegment3.Value())
-
-    # Create a wire out of the edges
-    aWire = BRepBuilderAPI_MakeWire(aEdge1.Edge(), aEdge2.Edge(), aEdge3.Edge(), aEdge4.Edge(), aEdge5.Edge())
-
-    display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
-    display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
-    display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
-    display.DisplayShape(aWire.Shape())
     start_display()
 
 
