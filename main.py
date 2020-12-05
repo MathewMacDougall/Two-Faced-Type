@@ -196,6 +196,119 @@ def extrude_and_clamp(faces, vec, clamp, height_mm):
         # display.DisplayShape(ext, color=random_color(), transparency=0.6)
         extrusions.append(ext)
 
+    clamped_extrusions = []
+    for e in extrusions:
+        ee = BRepAlgoAPI_Common(clamp_, e).Shape()
+        # tf = gp_Trsf()
+        # tf.SetScaleFactor(1 + 1e-6)
+        # eee = copy.deepcopy(BRepBuilderAPI_Transform(ee, tf).Shape())
+        # display.DisplayShape(ee, color=random_color(), transparency=0.6)
+        clamped_extrusions.append(copy.deepcopy(ee))
+
+    aRes = TopoDS_Compound()
+    aBuilder = BRep_Builder()
+    aBuilder.MakeCompound(aRes)
+    for e in clamped_extrusions:
+        aBuilder.Add(aRes, e)
+    print("res ", aRes)
+    # display.DisplayShape(aRes, color="CYAN", transparency=0.8)
+    solids = get_list_from_compound(aRes, CompoundSequenceType.SOLID)
+    # s1 = solids[0]
+    # s2 = solids[1]
+    # s3 = solids[2]
+    # print(get_mass(s1))
+    # print(get_mass(s2))
+    # print(get_mass(s3))
+    # display.DisplayShape(s1, color="RED")
+    # display.DisplayShape(s2, color="BLUE")
+    # display.DisplayShape(s3, color="WHITE")
+    result = clamped_extrusions[0]
+    failed_fuses = []
+    for s in clamped_extrusions[1:]:
+        # tf = gp_Trsf()
+        # # tf.SetScaleFactor(1 + 1e-2)
+        # tf.SetTranslation(gp_Vec(0, 0, -0.001))
+        # ss = BRepBuilderAPI_Transform(s, tf).Shape()
+        test_result = BRepAlgoAPI_Fuse(copy.deepcopy(result), s).Shape()
+        # test_result2 = BRepAlgoAPI_Fuse(copy.deepcopy(result), ss).Shape()
+        # if test_result is not None:
+        #     print("using test result")
+        #     result = test_result
+        # elif test_result2 is not None:
+        #     print("using test result 2")
+        #     result = test_result2
+        # else:
+        #     print("Error. Both results were None")
+        # print("loop")
+        if test_result is None:
+            # tf = gp_Trsf()
+            # # tf.SetScaleFactor(1 + 1e-2)
+            # tf.SetTranslation(gp_Vec(0, 0, -0.001))
+            # ss = copy.deepcopy(BRepBuilderAPI_Transform(s, tf).Shape())
+            # testresult2 = BRepAlgoAPI_Fuse(copy.deepcopy(result), ss).Shape()
+            # print("testresult2: ", testresult2)
+            # if testresult2 is not None:
+            #     result = testresult2
+            # else:
+            failed_fuses.append(s)
+        else:
+            result = test_result
+    display.DisplayShape(result, transparency=0.8)
+    fixed_result = copy.deepcopy(result)
+    double_failed_fuses = []
+    print("{} failed fuses".format(len(failed_fuses)))
+    for fs in failed_fuses:
+        tf = gp_Trsf()
+        # tf.SetTranslation(gp_Vec(0, 0, -0.0001))
+        tf.SetScaleFactor(1 + 1e-6)
+        fs = BRepBuilderAPI_Transform(fs, tf).Shape()
+        tt1 = BRepAlgoAPI_Fuse(fixed_result, fs)
+        tt1.SetFuzzyValue(100.001)
+        tt1.SetCheckInverted(True)
+        tt1.SetNonDestructive(False)
+        if tt1.Shape() is not None:
+            fixed_result = tt1.Shape()
+        else:
+            double_failed_fuses.append(fs)
+    print("{} recovered fuses".format(len(failed_fuses)-len(double_failed_fuses)))
+    print("{} double failed fuses".format(len(double_failed_fuses)))
+    display.DisplayShape(fixed_result, color="BLUE", transparency=0.8)
+
+
+        # display.DisplayShape(fs, color="RED")
+    # fs1 = failed_fuses[0]
+    # tf = gp_Trsf()
+    # # tf.SetTranslation(gp_Vec(0, 0, -0.0001))
+    # tf.SetScaleFactor(1+1e-6)
+    # fs1 = BRepBuilderAPI_Transform(fs1, tf).Shape()
+    # fs2 = failed_fuses[1]
+    # tt1 = BRepAlgoAPI_Fuse(result, fs1)
+    # tt1.SetFuzzyValue(100.001)
+    # tt1.SetCheckInverted(True)
+    # tt1.SetNonDestructive(False)
+    # tt2 = BRepAlgoAPI_Fuse(result, fs2)
+    # tt3 = BRepAlgoAPI_Fuse(fs1, fs2)
+    # display.DisplayShape(fs1, color="RED")
+    # display.DisplayShape(fs2, color="RED")
+    # print("tt1: ", tt1.Shape())
+    # display.DisplayShape(tt1.Shape())
+    # print("tt2: ", tt2.Shape())
+    # print("tt3: ", tt3.Shape())
+    # tt4 = BRepAlgoAPI_Fuse(tt3.Shape(), result)
+    # tt4.CHe
+    # print(tt4.Shape())
+
+    # s2 = solids[6]
+    # display.DisplayShape(s2, color="RED")
+    # fused = BRepAlgoAPI_Fuse(result, s2).Shape()
+    # print("fused: ", fused)
+
+    # result = BRepAlgoAPI_Common(clamp_, aRes).Shape()
+    # result = BRepAlgoAPI_Fuse(s1, s2).Shape()
+    start_display()
+    exit(0)
+    return copy.deepcopy(aRes)
+
     # for e in extrusions:
         # display.DisplayShape(e, color=random_color(), transparency=0.8)
 
@@ -226,18 +339,21 @@ def extrude_and_clamp(faces, vec, clamp, height_mm):
     #     newlist.append(copy.deepcopy(BRepAlgoAPI_Common(result, e).Shape()))
 
     # https://github.com/tpaviot/pythonocc-core/issues/641
-    from OCC.Core.TopTools import TopTools_ListOfShape
-    f2 = BRepAlgoAPI_Fuse()
-    L1 = TopTools_ListOfShape()
-    L1.Append(extrusions[0])
-    L2 = TopTools_ListOfShape()
-    L2.Append(extrusions[1])
-    f2.SetArguments(L2)
-    f2.SetTools(L1)
-    f2.SetFuzzyValue(0.1)
-    realresult = f2.Build()
-
-    display.DisplayShape(realresult.Shape())
+    # from OCC.Core.TopTools import TopTools_ListOfShape
+    # bool_op = BRepAlgoAPI_Fuse()
+    # args = TopTools_ListOfShape()
+    # for e in extrusions:
+    #     args.Append(e)
+    # # args.Append(extrusions[0])
+    # tools = TopTools_ListOfShape()
+    # tools.Append(clamp_)
+    # bool_op.SetArguments(args)
+    # bool_op.SetTools(tools)
+    # bool_op.SetFuzzyValue(0.1)
+    # realresult = bool_op.Build()
+    # print(realresult)
+    # start_display()
+    # display.DisplayShape(realresult.Shape())
 
 
     # real_result = newlist[0]
@@ -330,6 +446,7 @@ def project_and_clamp(compound, vec, containing_box, height_mm, disp=False):
     if not nonperp_faces:
         raise RuntimeError("No nonperp faces. This probably shouldn't happen.")
     magic_compound = extrude_and_clamp(nonperp_faces, vec, containing_box_, height_mm)
+    # display.DisplayShape(magic_compound)
     assert isinstance(magic_compound, TopoDS_Compound)
     return copy.deepcopy(magic_compound)
 
@@ -365,10 +482,14 @@ def get_list_from_compound(compound, sequence_type):
 
 
 def get_mass(compound):
-    assert isinstance(compound, TopoDS_Compound)
+    assert isinstance(compound, TopoDS_Compound) or isinstance(compound, TopoDS_Solid)
     compound_ = copy.deepcopy(compound)
 
-    solids = get_list_from_compound(compound_, CompoundSequenceType.SOLID)
+    if isinstance(compound, TopoDS_Compound):
+        solids = get_list_from_compound(compound_, CompoundSequenceType.SOLID)
+    else:
+        solids = [compound_]
+
 
     total_mass = 0
     for solid in solids:
@@ -411,6 +532,7 @@ def _remove_redundant_geometry_helper(compound, height_mm):
     # return None
     face2_vec = gp_Vec(-1, 0, 0)
     face2_reference_solid = project_and_clamp(compound_, face2_vec, bounding_box, height_mm)
+    start_display()
 
     # TODO: YOu are here. Fixed bug with the G curves being ignored (bounding box size)
     # Now the E face errors about 0.25 of the way through. Need ot find out why.
@@ -528,6 +650,6 @@ if __name__ == '__main__':
                         required=True)
     args = parser.parse_args()
 
-    # main(args.words[0], args.words[1], args.height, args.output_dir)
-    test_bad_fusion()
+    main(args.words[0], args.words[1], args.height, args.output_dir)
+    # test_bad_fusion()
 
