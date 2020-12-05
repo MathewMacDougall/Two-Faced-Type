@@ -340,9 +340,21 @@ def get_mass(compound):
     return total_mass
 
 def remove_redundant_geometry(shapes, height_mm):
-    return [_remove_redundant_geometry_helper(shape, height_mm) for shape in shapes]
+    return [_remove_redundant_geometry_helper2(shape, height_mm) for shape in shapes]
 
 def face_is_valid(temp_cut_compound_, vec_, bounding_box_, reference_solid, height_mm):
+    # temp_all_faces = get_list_from_compound(temp_cut_compound_, CompoundSequenceType.FACE)
+    # temp_nonperp_faces = get_nonperp_faces(temp_all_faces, vec_, False)
+    #
+    # reference_all_faces = get_list_from_compound(temp_cut_compound_, CompoundSequenceType.FACE)
+    # reference_nonperp_faces = get_nonperp_faces(reference_all_faces, vec_, False)
+    #
+    # for tf in temp_nonperp_faces:
+    #     display.DisplayShape(tf, color="BLUE", transparency=0.8)
+    # for rf in reference_nonperp_faces:
+    #     display.DisplayShape(rf, color="GREEN", transparency=0.0)
+    # start_display()
+
     temp_projected_compound = project_and_clamp(temp_cut_compound_, vec_, bounding_box_, height_mm, disp=True)
     diff = BRepAlgoAPI_Cut(reference_solid, temp_projected_compound)
     diff.SetNonDestructive(False)
@@ -355,6 +367,113 @@ def face_is_valid(temp_cut_compound_, vec_, bounding_box_, reference_solid, heig
         start_display()
     diff_mass = get_mass(diffff)
     return diff_mass < 0.1
+
+def bounding_rect(compound, plane):
+    assert isinstance(compound, TopoDS_Compound)
+    assert isinstance(plane, gp_Pln)
+
+    props = GlobalProperties(compound)
+    x1, y1, z1, x2, y2, z2 = props.bbox()
+    if plane == PL_XZ:
+        return x1, z1, x2, z2
+    elif plane == PL_YZ:
+        return y1, z1, y2, z2
+    else:
+        raise RuntimeError("bad plane")
+
+def _remove_redundant_geometry_helper2(compound, height_mm):
+    assert isinstance(compound, TopoDS_Compound)
+
+    compound_ = copy.deepcopy(compound)
+    face1_vec = gp_Vec(0, 1, 0)
+    face2_vec = gp_Vec(-1, 0, 0)
+
+    all_compound_faces = get_list_from_compound(compound_, CompoundSequenceType.FACE)
+    compound_nonperp_faces = get_nonperp_faces(all_compound_faces, face1_vec, False)
+
+    for cf in compound_nonperp_faces:
+        display.DisplayShape(cf, color="BLUE", transparency=0.8)
+
+    for index, face in enumerate(get_list_from_compound(compound_, CompoundSequenceType.FACE)):
+        if index != 0:
+            continue
+
+        display.DisplayShape(face)
+
+        gprop = BRepGProp_Face(face)
+        normal_point = gp_Pnt(0, 0, 0)
+        normal_vec = gp_Vec(0, 0, 0)
+        # TODO: how to get middle of face with UV mapping?
+        gprop.Normal(0, 0, normal_point, normal_vec)
+        normal_vec_reversed = normal_vec.Reversed() # point into solid
+        normal_extrusion = copy.deepcopy(make_extrusion(face, height_mm, normal_vec_reversed))
+        cutting_extrusion = copy.deepcopy(normal_extrusion)
+
+        def _face_can_be_removed(reference_faces, test_faces, bounding_range, pln):
+            # pseudocode
+            # Generate a grid of points in the bounding rect
+            # for each point
+            # * project onto each reference face, get min dist
+            # * project onto each test face, get min dist
+            # * if the min dist changes for any point between
+            #   the reference and test faces, then the "POV" has
+            #   changed and the face can NOT be removed
+
+            def _gen_pts(bounding_range, pln, num_pts_per_side=100):
+                pts = []
+                x_min, y_min, x_max, y_max = bounding_range
+                x_range = x_max - x_min
+                y_range = y_max - y_min
+                for ix in range(num_pts_per_side):
+                    x = x_min + ix*x_range
+                    for iy in range(num_pts_per_side):
+                        y = y_min + iy * y_range
+                        if pln == PL_XZ:
+                            pts.append(gp_Pnt(x, -100, y))
+                        elif pln == PL_YZ:
+                            pts.append(gp_Pnt(-1, x, y))
+                        else:
+                            raise RuntimeError()
+                return pts
+
+            def dist(p1, p2):
+                return math.sqrt(math.pow(p1.X()-p2.X(), 2) + math.pow(p1.Y()-p2.Y(), 2) + math.pow(p1.Z()-p2.Z(), 2))
+
+            def _get_distances(pts, faces):
+                distances = []
+                for p in pts:
+                    for f in faces:
+                        ff = Face(f)
+                        uv, proj_pnt = ff.project_vertex(p)
+                        distances.append(dist(proj_pnt, p))
+                return distances
+
+
+            pts = _gen_pts(bounding_range, pln)
+            for p in pts:
+                display.DisplayShape(p)
+
+            ref_distances = _get_distances(pts, reference_faces)
+            # test_distances = _get_distances(pts, test_faces)
+            test_distances = _get_distances(pts, reference_faces)
+            diff = [t-r for t, r in zip(test_distances, ref_distances)]
+            diff2 = list(filter(lambda x: x > 0.001, diff))
+            print("diff ", len(diff))
+            print("diff2 ", len(diff2))
+            return len(diff2) == 0
+
+
+
+
+
+        temp_cut_compound = BRepAlgoAPI_Cut(compound_, cutting_extrusion).Shape()
+        reference_all_faces = get_list_from_compound(temp_cut_compound, CompoundSequenceType.FACE)
+        reference_nonperp_faces = get_nonperp_faces(reference_all_faces, face1_vec, False)
+        # for rf in reference_nonperp_faces:
+        #     display.DisplayShape(rf, color="GREEN", transparency=0.0)
+        _face_can_be_removed(compound_nonperp_faces, reference_nonperp_faces, bounding_rect(compound_, PL_XZ), PL_XZ)
+
+    start_display()
 
 def _remove_redundant_geometry_helper(compound, height_mm):
     assert isinstance(compound, TopoDS_Compound)
