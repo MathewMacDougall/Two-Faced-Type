@@ -15,12 +15,12 @@ from OCCUtils.base import GlobalProperties
 from OCCUtils.face import Face
 from OCCUtils.solid import Solid
 from OCC.Core.BOPAlgo import BOPAlgo_Builder
-from OCC.Core.TopoDS import TopoDS_Solid
+from OCC.Core.TopoDS import TopoDS_Solid, TopoDS_Vertex
 from OCC.Core.GProp import GProp_GProps
 from OCC.Core import BRepGProp
 from OCC.Core.BRepPrimAPI import BRepPrimAPI_MakeBox
 from OCC.Display.SimpleGui import init_display
-from OCC.Extend.ShapeFactory import make_extrusion, make_edge, make_face
+from OCC.Extend.ShapeFactory import make_extrusion, make_edge, make_face, make_vertex
 from face_factory import FaceFactory
 from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Common, BRepAlgoAPI_Cut, BRepAlgoAPI_Fuse, BRepAlgoAPI_Check, BRepAlgoAPI_Section, BRepAlgoAPI_Splitter
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Transform, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeWire
@@ -137,7 +137,7 @@ def dot(v1, v2):
     assert isinstance(result, float)
     return result
 
-def get_nonperp_faces(faces, vec, disp=False):
+def get_nonperp_faces(faces, vec, perp=False, disp=False):
     assert isinstance(vec, gp_Vec)
     assert isinstance(faces, list)
 
@@ -172,16 +172,23 @@ def get_nonperp_faces(faces, vec, disp=False):
         #     display.DisplayShape(face, color=c, transparency=0.8)
         #     display.DisplayShape(normal_point, color=c)
         # display.DisplayShape(normal_point, color="BLACK")
-        if abs(dot(vec, normal_vec)) != 0:
-            # print("good")
-            nonperp_faces.append(face)
-            # if disp or True:
-            #     # print("drawing")
-            #     c = random_color()
-            #     display.DisplayShape(face, color=c, transparency=0.6)
-            #     display.DisplayShape(normal_point, color=c)
+        if perp:
+            if abs(dot(vec, normal_vec)) == 0:
+                nonperp_faces.append(face)
         else:
-            pass
+            if abs(dot(vec, normal_vec)) != 0:
+                nonperp_faces.append(face)
+
+        # if abs(dot(vec, normal_vec)) != 0:
+        #     # print("good")
+        #     nonperp_faces.append(face)
+        #     # if disp or True:
+        #     #     # print("drawing")
+        #     #     c = random_color()
+        #     #     display.DisplayShape(face, color=c, transparency=0.6)
+        #     #     display.DisplayShape(normal_point, color=c)
+        # else:
+        #     pass
             # print("DOT PRODUCT VALUE: {}".format(abs(dot(vec, normal_vec))))
     return copy.deepcopy(nonperp_faces)
 
@@ -381,35 +388,9 @@ def bounding_rect(compound, plane):
     else:
         raise RuntimeError("bad plane")
 
-def _remove_redundant_geometry_helper2(compound, height_mm):
-    assert isinstance(compound, TopoDS_Compound)
 
-    compound_ = copy.deepcopy(compound)
-    face1_vec = gp_Vec(0, 1, 0)
-    face2_vec = gp_Vec(-1, 0, 0)
 
-    all_compound_faces = get_list_from_compound(compound_, CompoundSequenceType.FACE)
-    compound_nonperp_faces = get_nonperp_faces(all_compound_faces, face1_vec, False)
-
-    for cf in compound_nonperp_faces:
-        display.DisplayShape(cf, color="BLUE", transparency=0.8)
-
-    for index, face in enumerate(get_list_from_compound(compound_, CompoundSequenceType.FACE)):
-        if index != 0:
-            continue
-
-        display.DisplayShape(face)
-
-        gprop = BRepGProp_Face(face)
-        normal_point = gp_Pnt(0, 0, 0)
-        normal_vec = gp_Vec(0, 0, 0)
-        # TODO: how to get middle of face with UV mapping?
-        gprop.Normal(0, 0, normal_point, normal_vec)
-        normal_vec_reversed = normal_vec.Reversed() # point into solid
-        normal_extrusion = copy.deepcopy(make_extrusion(face, height_mm, normal_vec_reversed))
-        cutting_extrusion = copy.deepcopy(normal_extrusion)
-
-        def _face_can_be_removed(reference_faces, test_faces, bounding_range, pln):
+def _face_can_be_removed(reference_faces, test_faces, bounding_range, pln):
             # pseudocode
             # Generate a grid of points in the bounding rect
             # for each point
@@ -419,61 +400,130 @@ def _remove_redundant_geometry_helper2(compound, height_mm):
             #   the reference and test faces, then the "POV" has
             #   changed and the face can NOT be removed
 
-            def _gen_pts(bounding_range, pln, num_pts_per_side=100):
+            def _gen_pts(bounding_range, pln, num_pts_per_side=12):
                 pts = []
                 x_min, y_min, x_max, y_max = bounding_range
                 x_range = x_max - x_min
                 y_range = y_max - y_min
-                for ix in range(num_pts_per_side):
-                    x = x_min + ix*x_range
-                    for iy in range(num_pts_per_side):
-                        y = y_min + iy * y_range
+                for ix in range(num_pts_per_side+1):
+                    x = x_min + ix*x_range / num_pts_per_side
+                    for iy in range(num_pts_per_side+1):
+                        y = y_min + iy * y_range / num_pts_per_side
                         if pln == PL_XZ:
-                            pts.append(gp_Pnt(x, -100, y))
+                            pts.append(gp_Pnt(x, -5, y))
                         elif pln == PL_YZ:
-                            pts.append(gp_Pnt(-1, x, y))
+                            pts.append(gp_Pnt(50, x, y))
                         else:
                             raise RuntimeError()
                 return pts
 
-            def dist(p1, p2):
-                return math.sqrt(math.pow(p1.X()-p2.X(), 2) + math.pow(p1.Y()-p2.Y(), 2) + math.pow(p1.Z()-p2.Z(), 2))
-
-            def _get_distances(pts, faces):
-                distances = []
+            def _get_distances(pts, faces1, faces2):
+                distances1 = []
+                distances2 = []
                 for p in pts:
-                    for f in faces:
-                        ff = Face(f)
-                        uv, proj_pnt = ff.project_vertex(p)
-                        distances.append(dist(proj_pnt, p))
-                return distances
+                    from OCCUtils.Common import minimum_distance
+                    distance1 = min([minimum_distance(f, make_vertex(p))[0] for f in faces1]) if faces1 else None
+                    distance2 = min([minimum_distance(f, make_vertex(p))[0] for f in faces2]) if faces2 else None
+                    distances1.append(distance1)
+                    distances2.append(distance2)
 
+                return distances1, distances2
 
             pts = _gen_pts(bounding_range, pln)
             for p in pts:
                 display.DisplayShape(p)
 
-            ref_distances = _get_distances(pts, reference_faces)
-            # test_distances = _get_distances(pts, test_faces)
-            test_distances = _get_distances(pts, reference_faces)
-            diff = [t-r for t, r in zip(test_distances, ref_distances)]
+            ref_distances, test_distances = _get_distances(pts, reference_faces, test_faces)
+            diff = [abs(t-r) if t is not None and r is not None else 100 for t, r in zip(test_distances, ref_distances)]
             diff2 = list(filter(lambda x: x > 0.001, diff))
-            print("diff ", len(diff))
-            print("diff2 ", len(diff2))
+            # print("diff ", len(diff))
+            # print("diff2 ", len(diff2))
             return len(diff2) == 0
 
 
+def _remove_redundant_geometry_helper2(compound, height_mm):
+    assert isinstance(compound, TopoDS_Compound)
 
+    compound_ = copy.deepcopy(compound)
+    face1_vec = gp_Vec(0, 1, 0)
+    face2_vec = gp_Vec(-1, 0, 0)
 
+    all_compound_faces = get_list_from_compound(compound_, CompoundSequenceType.FACE)
+    compound_face1_nonperp_faces = get_nonperp_faces(all_compound_faces, face1_vec, False)
+    compound_face2_nonperp_faces = get_nonperp_faces(all_compound_faces, face2_vec, False)
+
+    # for cf in compound_face1_nonperp_faces:
+    #     display.DisplayShape(cf, color="CYAN", transparency=0.8)
+    # for cf in compound_face2_nonperp_faces:
+    #     display.DisplayShape(cf, color="CYAN", transparency=0.8)
+
+    result_compound = copy.deepcopy(compound_)
+    # TODO: could iterate over perp faces only?
+    all_faces = get_list_from_compound(compound_, CompoundSequenceType.FACE)
+
+    face2_removal = []
+    for index, face in enumerate(get_nonperp_faces(all_faces, face2_vec, perp=True)):
+        gprop = BRepGProp_Face(face)
+        normal_point = gp_Pnt(0, 0, 0)
+        normal_vec = gp_Vec(0, 0, 0)
+        # TODO: how to get middle of face with UV mapping?
+        gprop.Normal(0, 0, normal_point, normal_vec)
+        normal_vec_reversed = normal_vec.Reversed() # point into solid
+        normal_extrusion = copy.deepcopy(make_extrusion(face, 5*height_mm, normal_vec_reversed))
+        cutting_extrusion = copy.deepcopy(normal_extrusion)
 
         temp_cut_compound = BRepAlgoAPI_Cut(compound_, cutting_extrusion).Shape()
         reference_all_faces = get_list_from_compound(temp_cut_compound, CompoundSequenceType.FACE)
-        reference_nonperp_faces = get_nonperp_faces(reference_all_faces, face1_vec, False)
-        # for rf in reference_nonperp_faces:
-        #     display.DisplayShape(rf, color="GREEN", transparency=0.0)
-        _face_can_be_removed(compound_nonperp_faces, reference_nonperp_faces, bounding_rect(compound_, PL_XZ), PL_XZ)
+        reference_face2_nonperp_faces = get_nonperp_faces(reference_all_faces, face2_vec, False)
+        yz_removal_ok = _face_can_be_removed(compound_face2_nonperp_faces, reference_face2_nonperp_faces, bounding_rect(compound_, PL_YZ), PL_YZ)
+        if yz_removal_ok:
+            print("cut face {}".format(index))
+            face2_removal.append(copy.deepcopy(cutting_extrusion))
 
+    face1_removal = []
+    # for cf in compound_face1_nonperp_faces:
+    #     display.DisplayShape(cf, color="CYAN", transparency=0.8)
+    fooo = get_nonperp_faces(all_faces, face1_vec, perp=True)
+    for index, face in enumerate(fooo):
+        gprop = BRepGProp_Face(face)
+        normal_point = gp_Pnt(0, 0, 0)
+        normal_vec = gp_Vec(0, 0, 0)
+        # TODO: how to get middle of face with UV mapping?
+        gprop.Normal(0, 0, normal_point, normal_vec)
+        normal_vec_reversed = normal_vec.Reversed() # point into solid
+        normal_extrusion = copy.deepcopy(make_extrusion(face, 5*height_mm, normal_vec_reversed))
+        cutting_extrusion = copy.deepcopy(normal_extrusion)
+
+        temp_cut_compound = BRepAlgoAPI_Cut(compound_, cutting_extrusion).Shape()
+        reference_all_faces = get_list_from_compound(temp_cut_compound, CompoundSequenceType.FACE)
+        reference_face1_nonperp_faces = get_nonperp_faces(reference_all_faces, face1_vec, False)
+        xz_removal_ok = _face_can_be_removed(compound_face1_nonperp_faces, reference_face1_nonperp_faces, bounding_rect(compound_, PL_XZ), PL_XZ)
+        if xz_removal_ok:
+            print("cut face {}".format(index))
+            # display.DisplayShape(cutting_extrusion)
+            face1_removal.append(copy.deepcopy(cutting_extrusion))
+            # result_compound = BRepAlgoAPI_Cut(result_compound, cutting_extrusion).Shape()
+    print("len face1 removal: ", len(face1_removal))
+    print("len face2 removal: ", len(face2_removal))
+    combo_list = [x for x in face1_removal if x in face2_removal]
+    print("intersection: ", len(combo_list))
+
+    final_shape = copy.deepcopy(compound_)
+    for c in face1_removal:
+        final_shape = BRepAlgoAPI_Cut(final_shape, c).Shape()
+    final_shape2 = copy.deepcopy(compound_)
+    for c in face2_removal:
+        final_shape2 = BRepAlgoAPI_Cut(final_shape2, c).Shape()
+
+    display.DisplayShape(final_shape)
+    display.DisplayShape(final_shape2, color="WHITE")
+    print("result compound")
+    print(result_compound)
     start_display()
+    return final_shape
+
+
+    # start_display()
 
 def _remove_redundant_geometry_helper(compound, height_mm):
     assert isinstance(compound, TopoDS_Compound)
@@ -552,19 +602,11 @@ def main(word1, word2, height_mm, output_dir):
 
     letters, faces1, faces2 = combine_words(word1, word2, face_factory, height_mm)
     letters = remove_redundant_geometry(letters, height_mm)
-    try:
-        letters = remove_redundant_geometry(letters, height_mm)
-    except AssertionError as e:
-        # print(e)
-        # if e
-        # if e
-        # print("ERROR")
-        pass
     letters = offset_shapes(letters, height_mm)
 
-    # for letter in letters:
-    #     if letter:
-    #         display.DisplayShape(letter)
+    for letter in letters:
+        if letter:
+            display.DisplayShape(letter)
 
     # save_to_stl(letters, output_dir)
 
