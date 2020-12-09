@@ -1,5 +1,9 @@
 import unittest
 import pathlib
+
+from OCC.Core.BOPAlgo import BOPAlgo_ShellSplitter
+from OCC.Core.TopTools import TopTools_ListOfShape
+
 from constants import LINE_Z, LINE_Y, LINE_X
 from OCC.Extend.ShapeFactory import make_edge
 from redundant_geom_line import *
@@ -86,9 +90,30 @@ class TestRemoveRedundantGeom(unittest.TestCase):
         display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
         display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
         display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
-        # display.DisplayShape(result, color="BLUE", transparency=0.7)
+        display.DisplayShape(result, color="BLUE", transparency=0.7)
         # display.DisplayShape(self.compound_HE, color="BLUE", transparency=0.7)
         start_display()
+
+    def test_misc(self):
+        shell_splitter = BOPAlgo_ShellSplitter()
+        shell_splitter.AddStartElement(self.compound_HE)
+        shell_splitter.Perform()
+        foo = shell_splitter.StartElements()
+        assert isinstance(foo, TopTools_ListOfShape)
+        while foo.Size() > 0:
+            val = foo.First()
+            display.DisplayShape(val)
+            print(val)
+            foo.RemoveFirst()
+        start_display()
+
+    # TODO: you are here. Ran into edge case with line approach (need to check to make sure
+    # result shape is contiguous / that the front pieces never get removed). This probably works
+    # for most cases, but not all like V/T
+    #
+    # Started thinking about other algos, like splitting by all face planes
+    # and then reconstructing somehow. Should probably just finish the above
+    # line version to have _something_ working before I waste more time
 
 
 

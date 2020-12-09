@@ -138,6 +138,14 @@ def get_shape_line_intersections(shape, line):
         intersections = [(shape_inter.Pnt(i), shape_inter.Face(i), line) for i in range(1, shape_inter.NbPnt() + 1)] # Indices start at 1 :(
         return intersections
 
+def get_closest_shape_line_intersection(shape, line):
+    # TODO: currently closest to y=0
+    intersections = get_shape_line_intersections(shape, line)
+
+def is_compound_contiguous(compound):
+    solids = get_solids(compound)
+    BRepExtrema_ShapeProximity()
+
 def get_line_face_intersection(line, face):
     assert isinstance(line, gp_Lin)
 
@@ -188,10 +196,10 @@ def remove_redundant_geometry_lines(compound, height_mm, display):
 
     result = copy.deepcopy(compound)
     for index, f in enumerate(get_perp_faces(all_faces, gp_Vec(0, 1, 0))):
-        if index != 16:
-            continue
+        # if index != 16:
+        #     continue
         #
-        display.DisplayShape(f, color="BLUE", transparency=0.7)
+        # display.DisplayShape(f, color="BLUE", transparency=0.7)
         normal_vec = gp_Vec(face_normal(Face(f)))
         # Face(f)>
         # gprop = BRepGProp_Face(f)
@@ -199,13 +207,13 @@ def remove_redundant_geometry_lines(compound, height_mm, display):
         # normal_vec = gp_Vec(0, 0, 0)
         # # TODO: how to get middle of face with UV mapping?
         # gprop.Normal(0, 0, normal_point, normal_vec)
-        # normal_vec_reversed = normal_vec.Reversed()  # point into solid
-        normal_vec_reversed = normal_vec  # point into solid
+        normal_vec_reversed = normal_vec.Reversed()  # point into solid
+        # normal_vec_reversed = normal_vec  # point into solid
         normal_extrusion = make_extrusion(f, height_mm, normal_vec_reversed)
-        display.DisplayShape(normal_extrusion, transparency=0.8)
+        # display.DisplayShape(normal_extrusion, transparency=0.8)
 
         temp_cut_compound = BRepAlgoAPI_Cut(copy.deepcopy(result), normal_extrusion).Shape()
-        display.DisplayShape(temp_cut_compound, color="WHITE", transparency=0.8)
+        # display.DisplayShape(temp_cut_compound, color="WHITE", transparency=0.8)
         valid, intersections, num_non_intersections = shape_valid(temp_cut_compound, lines)
         # for inter in intersections:
             # display.DisplayShape(inter[1], color="GREEN", transparency=0.8)
@@ -217,19 +225,19 @@ def remove_redundant_geometry_lines(compound, height_mm, display):
             print("{}: did NOT remove face".format(index))
 
         # sometimes the normal isn't always where I expect??? Just try both I guess
-        # normal_vec_reversed = normal_vec_reversed.Reversed()
-        # normal_extrusion = make_extrusion(f, height_mm, normal_vec_reversed)
-        # temp_cut_compound = BRepAlgoAPI_Cut(copy.deepcopy(result), normal_extrusion).Shape()
-        # # display.DisplayShape(temp_cut_compound, color="WHITE", transparency=0.8)
-        # valid, intersections, num_non_intersections = shape_valid(temp_cut_compound, lines)
-        # # for inter in intersections:
-        # # display.DisplayShape(inter[1], color="GREEN", transparency=0.8)
-        # # display.DisplayShape(make_edge(inter[2]), color="GREEN", transparency=0.0)
-        # if valid:
-        #     print("{}: removed face".format(index))
-        #     result = copy.deepcopy(temp_cut_compound)
-        # else:
-        #     print("{}: did NOT remove face".format(index))
+        normal_vec_reversed = normal_vec_reversed.Reversed()
+        normal_extrusion = make_extrusion(f, height_mm, normal_vec_reversed)
+        temp_cut_compound = BRepAlgoAPI_Cut(copy.deepcopy(result), normal_extrusion).Shape()
+        # display.DisplayShape(temp_cut_compound, color="WHITE", transparency=0.8)
+        valid, intersections, num_non_intersections = shape_valid(temp_cut_compound, lines)
+        # for inter in intersections:
+        # display.DisplayShape(inter[1], color="GREEN", transparency=0.8)
+        # display.DisplayShape(make_edge(inter[2]), color="GREEN", transparency=0.0)
+        if valid:
+            print("{}: removed face".format(index))
+            result = copy.deepcopy(temp_cut_compound)
+        else:
+            print("{}: did NOT remove face".format(index))
     return result
 
 
