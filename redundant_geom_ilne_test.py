@@ -63,18 +63,31 @@ class TestRemoveRedundantGeom(unittest.TestCase):
         start_display()
 
     def test_line_face_intersection(self):
-        line = gp_Lin(gp_Pnt(5, 0, 5), gp_Dir(gp_Vec(0,1,0)))
+        line = gp_Lin(gp_Pnt(-5, 0, -100), gp_Dir(gp_Vec(0,1,0)))
         face = self.face_H
+        print(Face(face).domain())
         result = get_line_face_intersection(line, face)
-        self.assertEqual((5, 5, 0), result)
+        # self.assertEqual((5, 5, 0), result)
+
+    def test_solid_line_intersection(self):
+        line = gp_Lin(gp_Pnt(1, 0, 1), gp_Dir(gp_Vec(0,1,0)))
+        compound = self.compound_HE
+        result = get_shape_line_intersections(compound, line)
+        for p, f in result:
+            display.DisplayShape(p)
+            display.DisplayShape(f, transparency=0.7)
+        start_display()
+        # self.assertEqual((5, 5, 0), result)
+
 
     def test_remove_geom_HE_H_face(self):
-        result = remove_redundant_geometry_lines(self.compound_GE, self.height_mm)
+        result = remove_redundant_geometry_lines(self.compound_HE, self.height_mm, display)
 
         display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
         display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
         display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
-        # display.DisplayShape(result, color="GREEN")
+        display.DisplayShape(result, color="BLUE", transparency=0.7)
+        # display.DisplayShape(self.compound_HE, color="BLUE", transparency=0.7)
         start_display()
 
 
