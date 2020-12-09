@@ -6,6 +6,7 @@ import logging
 from OCC.Core.GeomAPI import GeomAPI_IntCS
 
 from OCCUtils.Common import minimum_distance
+from OCCUtils.Construct import face_normal
 from OCC.Core.gp import gp_Pnt
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeFace
 from OCC.Core.TColgp import TColgp_Array2OfPnt
@@ -51,6 +52,16 @@ from OCCUtils.Common import project_point_on_plane, normal_vector_from_plane, in
 
 logger = logging.getLogger("TFT")
 logger.setLevel(logging.DEBUG)
+
+def fix_shape(shape, tolerance=1e-3):
+    from OCC.Core.ShapeFix import ShapeFix_Shape
+    fix = ShapeFix_Shape(shape)
+    fix.SetFixFreeShellMode(True)
+    sf = fix.FixShellTool()
+    sf.SetFixOrientationMode(True)
+    fix.LimitTolerance(tolerance)
+    fix.Perform()
+    return copy.deepcopy(fix.Shape())
 
 def get_point_on_face(face):
     assert isinstance(face, TopoDS_Face) or isinstance(face, Face)
@@ -149,13 +160,15 @@ def shape_valid(shape, lines):
     intersections = []
     for l in lines:
         temp = get_shape_line_intersections(shape, l)
-        intersections += temp
-    num_non_intersections = len(lines) - len(intersections)
+        intersections.append(temp)
+    num_non_intersections = len([i for i in intersections if not i])
+    # num_non_intersections = len(lines) - len(intersections)
     print("{} intersections, {} nonintersections".format(len(intersections), num_non_intersections))
 
     return num_non_intersections <= 0, intersections, num_non_intersections
 
 def remove_redundant_geometry_lines(compound, height_mm, display):
+    compound = fix_shape(compound)
     all_faces = get_faces(compound)
     face1_nonperp_faces = get_nonperp_faces(all_faces, gp_Vec(0, 1, 0))
     # for f in face1_nonperp_faces:
@@ -169,26 +182,30 @@ def remove_redundant_geometry_lines(compound, height_mm, display):
     # testval = shape_valid(compound, lines)
     print("{} lines".format(len(lines)))
 
-    # display.DisplayShape([make_edge(l) for l in lines])
+    display.DisplayShape([make_edge(l) for l in lines])
     # display.DisplayShape(compound, color="WHITE", transparency=0.8)
     # return None
 
     result = copy.deepcopy(compound)
-    for index, f in enumerate(all_faces):
-        # if index != 21:
-        #     continue
+    for index, f in enumerate(get_perp_faces(all_faces, gp_Vec(0, 1, 0))):
+        if index != 16:
+            continue
         #
-        # display.DisplayShape(f, color="BLUE", transparency=0.7)
-        gprop = BRepGProp_Face(f)
-        normal_point = gp_Pnt(0, 0, 0)
-        normal_vec = gp_Vec(0, 0, 0)
-        # TODO: how to get middle of face with UV mapping?
-        gprop.Normal(0, 0, normal_point, normal_vec)
-        normal_vec_reversed = normal_vec.Reversed()  # point into solid
+        display.DisplayShape(f, color="BLUE", transparency=0.7)
+        normal_vec = gp_Vec(face_normal(Face(f)))
+        # Face(f)>
+        # gprop = BRepGProp_Face(f)
+        # normal_point = gp_Pnt(0, 0, 0)
+        # normal_vec = gp_Vec(0, 0, 0)
+        # # TODO: how to get middle of face with UV mapping?
+        # gprop.Normal(0, 0, normal_point, normal_vec)
+        # normal_vec_reversed = normal_vec.Reversed()  # point into solid
+        normal_vec_reversed = normal_vec  # point into solid
         normal_extrusion = make_extrusion(f, height_mm, normal_vec_reversed)
+        display.DisplayShape(normal_extrusion, transparency=0.8)
 
-        temp_cut_compound = BRepAlgoAPI_Cut(compound, normal_extrusion).Shape()
-        # display.DisplayShape(temp_cut_compound, color="WHITE", transparency=0.8)
+        temp_cut_compound = BRepAlgoAPI_Cut(copy.deepcopy(result), normal_extrusion).Shape()
+        display.DisplayShape(temp_cut_compound, color="WHITE", transparency=0.8)
         valid, intersections, num_non_intersections = shape_valid(temp_cut_compound, lines)
         # for inter in intersections:
             # display.DisplayShape(inter[1], color="GREEN", transparency=0.8)
@@ -198,6 +215,21 @@ def remove_redundant_geometry_lines(compound, height_mm, display):
             result = copy.deepcopy(temp_cut_compound)
         else:
             print("{}: did NOT remove face".format(index))
+
+        # sometimes the normal isn't always where I expect??? Just try both I guess
+        # normal_vec_reversed = normal_vec_reversed.Reversed()
+        # normal_extrusion = make_extrusion(f, height_mm, normal_vec_reversed)
+        # temp_cut_compound = BRepAlgoAPI_Cut(copy.deepcopy(result), normal_extrusion).Shape()
+        # # display.DisplayShape(temp_cut_compound, color="WHITE", transparency=0.8)
+        # valid, intersections, num_non_intersections = shape_valid(temp_cut_compound, lines)
+        # # for inter in intersections:
+        # # display.DisplayShape(inter[1], color="GREEN", transparency=0.8)
+        # # display.DisplayShape(make_edge(inter[2]), color="GREEN", transparency=0.0)
+        # if valid:
+        #     print("{}: removed face".format(index))
+        #     result = copy.deepcopy(temp_cut_compound)
+        # else:
+        #     print("{}: did NOT remove face".format(index))
     return result
 
 

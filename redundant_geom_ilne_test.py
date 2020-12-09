@@ -86,7 +86,7 @@ class TestRemoveRedundantGeom(unittest.TestCase):
         display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
         display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
         display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
-        display.DisplayShape(result, color="BLUE", transparency=0.7)
+        # display.DisplayShape(result, color="BLUE", transparency=0.7)
         # display.DisplayShape(self.compound_HE, color="BLUE", transparency=0.7)
         start_display()
 
