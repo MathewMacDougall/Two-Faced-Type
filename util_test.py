@@ -137,7 +137,7 @@ class TestUtil(unittest.TestCase):
 
     def test_split_compound_Q4(self):
         result = split_compound(self.compound_Q4, display)
-        # self.assertEqual(40, len(result))
+        self.assertEqual(65, len(result))
 
         # Validated visually
         for solid in result:
