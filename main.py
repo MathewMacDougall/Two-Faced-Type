@@ -37,7 +37,7 @@ from OCC.Core.TopoDS import TopoDS_Compound, TopoDS_Solid, TopoDS_Shape, TopoDS_
 logger = logging.getLogger("TFT")
 logger.setLevel(logging.DEBUG)
 
-display, start_display, add_menu, add_function_to_menu = init_display()
+# display, start_display, add_menu, add_function_to_menu = init_display()
 
 def combine_faces(face1, face2, height_mm):
     assert isinstance(face1, TopoDS_Face)

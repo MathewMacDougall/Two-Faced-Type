@@ -1,5 +1,27 @@
 import math
 
+class Point():
+    def __init__(self, x, y, z):
+        self._x = x
+        self._y = y
+        self._z = z
+
+    def x(self):
+        return self._x
+
+    def y(self):
+        return self._y
+
+    def z(self):
+        return self._z
+
+    def dist(self, other):
+        x_dist = other.x() - self.x()
+        y_dist = other.y() - self.y()
+        z_dist = other.z() - self.z()
+        return math.sqrt(x_dist ** 2 + y_dist ** 2 + z_dist ** 2)
+
+
 class BoundingBox():
     def __init__(self, xmin, ymin, zmin, xmax, ymax, zmax):
         self._xmin = xmin
@@ -76,3 +98,35 @@ class BoundingBox():
         x_dist = max(max_x_dist - self.x_length() - other.x_length(), 0)
 
         return math.sqrt(x_dist ** 2 + y_dist ** 2 + z_dist ** 2)
+
+    def min_dist_to_point(self, pnt):
+        assert isinstance(pnt, Point)
+
+        corners = [
+            Point(self._xmin, self._ymin, self._zmin),
+            Point(self._xmin, self._ymin, self._zmax),
+            Point(self._xmin, self._ymax, self._zmin),
+            Point(self._xmin, self._ymax, self._zmax),
+            Point(self._xmax, self._ymin, self._zmin),
+            Point(self._xmax, self._ymin, self._zmax),
+            Point(self._xmax, self._ymax, self._zmin),
+            Point(self._xmax, self._ymax, self._zmax),
+        ]
+
+        return min([pnt.dist(c) for c in corners])
+
+    def max_dist_to_point(self, pnt):
+        assert isinstance(pnt, Point)
+
+        corners = [
+            Point(self._xmin, self._ymin, self._zmin),
+            Point(self._xmin, self._ymin, self._zmax),
+            Point(self._xmin, self._ymax, self._zmin),
+            Point(self._xmin, self._ymax, self._zmax),
+            Point(self._xmax, self._ymin, self._zmin),
+            Point(self._xmax, self._ymin, self._zmax),
+            Point(self._xmax, self._ymax, self._zmin),
+            Point(self._xmax, self._ymax, self._zmax),
+        ]
+
+        return max([pnt.dist(c) for c in corners])

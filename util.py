@@ -170,7 +170,7 @@ def bounding_rect(compound, plane):
     else:
         raise RuntimeError("bad plane")
 
-def split_compound(compound, display):
+def split_compound(compound):
     all_faces = get_faces(compound)
     planar_faces = list(filter(lambda x: Face(x).is_planar(), all_faces))
 

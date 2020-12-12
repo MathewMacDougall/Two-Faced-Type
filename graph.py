@@ -25,7 +25,7 @@ class Graph:
                 pass
 
     def all_vertices(self):
-        return {k for k in self.graph.keys()}
+        return [k for k in self.graph.keys()]
 
     def get_adjacency_list(self):
         return copy.deepcopy(self.graph)
