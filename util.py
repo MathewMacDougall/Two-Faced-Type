@@ -2,6 +2,7 @@ from enum import Enum
 import copy
 
 from OCC.Core import BRepGProp
+from OCC.Core.BOPAlgo import BOPAlgo_Builder
 from OCC.Core.BRepGProp import BRepGProp_Face
 from OCC.Core.BRepPrimAPI import BRepPrimAPI_MakeBox
 from OCC.Core.GProp import GProp_GProps
@@ -10,12 +11,15 @@ from OCC.Core.TopTools import TopTools_HSequenceOfShape
 from OCC.Core.TopoDS import TopoDS_Compound, TopoDS_Solid, TopoDS_Face
 from OCC.Core.gp import gp_Pnt, gp_Vec, gp_Pln
 from OCC.Extend.TopologyUtils import TopologyExplorer
+from OCCUtils import Topo
 from OCCUtils.base import GlobalProperties
 from OCCUtils.face import Face
 
 from constants import PL_XZ, PL_YZ
 
 import logging
+from OCCUtils.Construct import make_box, make_face
+from OCCUtils.Construct import vec_to_dir
 
 logger = logging.getLogger("TFT")
 
@@ -101,24 +105,29 @@ def get_solids(compound):
 
 def _get_list_from_compound(compound, sequence_type):
     assert isinstance(sequence_type, CompoundSequenceType)
+    assert isinstance(compound, TopoDS_Compound) or isinstance(compound, TopoDS_Solid)
     compound_ = copy.deepcopy(compound)
 
-    se_exp = ShapeExtend_Explorer()
-    shape_sequence = se_exp.SeqFromCompound(compound_, True)
-    solids_sequence = TopTools_HSequenceOfShape()
-    # Only the solids seem to be populated properly.
-    # Need to use TopologyExplorer to get other features
-    se_exp.DispatchList(shape_sequence,
-                        TopTools_HSequenceOfShape(),
-                        TopTools_HSequenceOfShape(),
-                        TopTools_HSequenceOfShape(),
-                        TopTools_HSequenceOfShape(),
-                        TopTools_HSequenceOfShape(),
-                        solids_sequence,
-                        TopTools_HSequenceOfShape(),
-                        TopTools_HSequenceOfShape())
+    if isinstance(compound, TopoDS_Compound):
+        se_exp = ShapeExtend_Explorer()
+        shape_sequence = se_exp.SeqFromCompound(compound_, True)
+        solids_sequence = TopTools_HSequenceOfShape()
+        # Only the solids seem to be populated properly.
+        # Need to use TopologyExplorer to get other features
+        se_exp.DispatchList(shape_sequence,
+                            TopTools_HSequenceOfShape(),
+                            TopTools_HSequenceOfShape(),
+                            TopTools_HSequenceOfShape(),
+                            TopTools_HSequenceOfShape(),
+                            TopTools_HSequenceOfShape(),
+                            solids_sequence,
+                            TopTools_HSequenceOfShape(),
+                            TopTools_HSequenceOfShape())
 
-    solids = [solids_sequence.Value(i) for i in range(1, solids_sequence.Length() + 1)]  # Indices start at 1 :(
+        solids = [solids_sequence.Value(i) for i in range(1, solids_sequence.Length() + 1)]  # Indices start at 1 :(
+    else:
+        solids = [compound]
+
     faces = [f for solid in solids for f in TopologyExplorer(solid).faces()]
 
     if sequence_type == CompoundSequenceType.FACE:
@@ -160,3 +169,31 @@ def bounding_rect(compound, plane):
         return y1, z1, y2, z2
     else:
         raise RuntimeError("bad plane")
+
+def split_compound(compound, display):
+    all_faces = get_faces(compound)
+    planar_faces = list(filter(lambda x: Face(x).is_planar(), all_faces))
+
+    p1, v1 = gp_Pnt(50, 50, 25), gp_Vec(0, 0, -1)
+    fc1 = make_face(gp_Pln(p1, vec_to_dir(v1)), -1000, 1000, -1000, 1000)  # limited, not infinite plane
+
+    bo = BOPAlgo_Builder()
+    bo.AddArgument(copy.deepcopy(compound))
+    # bo.AddArgument(fc1)
+
+    # display.DisplayShape(fc1, transparency=0.7)
+    for f in planar_faces:
+        gprop = BRepGProp_Face(f)
+        normal_point = gp_Pnt(0, 0, 0)
+        normal_vec = gp_Vec(0, 0, 0)
+        gprop.Normal(0, 0, normal_point, normal_vec)
+        big_face = make_face(gp_Pln(normal_point, vec_to_dir(normal_vec)), -1000, 1000, -1000, 1000)  # limited, not infinite plane
+        bo.AddArgument(big_face)
+        # display.DisplayShape(big_face, transparency=0.7)
+
+    bo.Perform()
+    # print("error status: {}".format(bo.ErrorStatus()))
+
+    top = Topo(bo.Shape())
+    result = [s for s in top.solids()]
+    return result

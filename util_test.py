@@ -1,5 +1,6 @@
 import unittest
 import pathlib
+from OCCUtils.Common import random_color
 from OCC.Display.SimpleGui import init_display
 from constants import LINE_X, LINE_Y, LINE_Z
 from OCC.Extend.ShapeFactory import make_edge
@@ -19,9 +20,12 @@ class TestUtil(unittest.TestCase):
         self.face_G = face_factory.create_char('G', height_mm)
         self.face_V = face_factory.create_char('V', height_mm)
         self.face_T = face_factory.create_char('T', height_mm)
+        self.face_Q = face_factory.create_char('Q', height_mm)
+        self.face_4 = face_factory.create_char('4', height_mm)
         self.compound_HE = combine_faces(self.face_H, self.face_E, height_mm)
         self.compound_GE = combine_faces(self.face_G, self.face_E, height_mm)
         self.compound_VT = combine_faces(self.face_V, self.face_T, height_mm)
+        self.compound_Q4 = combine_faces(self.face_Q, self.face_4, height_mm)
 
     def test_get_perp_faces_XZ_plane(self):
         perp_faces_HE = get_perp_faces(get_faces(self.compound_HE), gp_Vec(0, 1, 0))
@@ -95,6 +99,52 @@ class TestUtil(unittest.TestCase):
         # display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
         # display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
         # start_display()
+
+
+    def test_split_compound_HE(self):
+        result = split_compound(self.compound_HE, display)
+        self.assertEqual(22, len(result))
+
+        # Validated visually
+        for solid in result:
+            display.DisplayShape(solid, color=random_color(), transparency=0.7)
+
+        display.FitAll()
+        start_display()
+
+
+    def test_split_compound_VT(self):
+        result = split_compound(self.compound_VT, display)
+        self.assertEqual(9, len(result))
+
+        # Validated visually
+        for solid in result:
+            display.DisplayShape(solid, color=random_color(), transparency=0.7)
+
+        display.FitAll()
+        start_display()
+
+    def test_split_compound_GE(self):
+        result = split_compound(self.compound_GE, display)
+        self.assertEqual(40, len(result))
+
+        # Validated visually
+        for solid in result:
+            display.DisplayShape(solid, color=random_color(), transparency=0.7)
+
+        display.FitAll()
+        start_display()
+
+    def test_split_compound_Q4(self):
+        result = split_compound(self.compound_Q4, display)
+        # self.assertEqual(40, len(result))
+
+        # Validated visually
+        for solid in result:
+            display.DisplayShape(solid, color=random_color(), transparency=0.7)
+
+        display.FitAll()
+        start_display()
 
 
 if __name__ == '__main__':

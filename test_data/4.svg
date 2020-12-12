@@ -1,0 +1,6 @@
+<svg width="125.63999023437499px" height="182.03999023437498px" xmlns="http://www.w3.org/2000/svg" viewBox="187.1800048828125 -16.01999511718749 125.63999023437499 182.03999023437498" style="background: rgba(0, 0, 0, 0) none repeat scroll 0% 0%;" preserveAspectRatio="xMidYMid"><defs><filter id="editing-extrusion" x="-100%" y="-100%" width="300%" height="300%"><feFlood result="color1" flood-color="none"></feFlood><feConvolveMatrix order="1,1" divisor="1" kernelMatrix="1" in="SourceAlpha" result="extrude"></feConvolveMatrix><feComposite in="color1" in2="extrude" result="comp-extrude" operator="in"></feComposite><feOffset dx="0.5" dy="0.5" in="comp-extrude" result="offset-extrude"></feOffset><feMerge><feMergeNode in="offset-extrude"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter></defs><g filter="url(#editing-extrusion)"><g transform="translate(212.68000030517578, 118.7599983215332)"><path d="M2.50-18.13L2.50-30.15L45.65-87.52L60.36-87.52L60.36-30.15L72.14-30.15L72.14-18.13L60.36-18.13L60.36 0L47.85 0L47.85-18.13L2.50-18.13ZM16.11-30.15L47.85-30.15L47.85-72.39L16.11-30.15Z" fill="#000000"></path></g></g><style>text {
+  font-size: 64px;
+  font-family: Arial Black;
+  dominant-baseline: central;
+  text-anchor: middle;
+}</style></svg>
