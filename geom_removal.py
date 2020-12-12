@@ -53,19 +53,17 @@ def create_solid_graph(solids):
 
     return graph
 
-
 def remove_redundant_geom(compound):
     all_solids = split_compound(compound)
     graph = create_solid_graph(all_solids)
 
     props = GlobalProperties(compound)
     x1, y1, z1, x2, y2, z2 = props.bbox()
-
     corner = Point(x2, y1, z2)
-    vertices = graph.all_vertices()
-    vertices.sort(key=lambda x: x.bbox().max_dist_to_point(corner))
+    vertices_to_remove = graph.all_vertices()
+    vertices_to_remove.sort(key=lambda x: x.bbox().max_dist_to_point(corner))
 
-    return vertices
+    return vertices_to_remove
 
 
 
