@@ -62,6 +62,11 @@ class BoundingBoxTest(unittest.TestCase):
         self.assertTrue(a.overlaps(b))
         self.assertEqual(a.overlaps(b), b.overlaps(a))
 
+    def test_overlaps_boxes_threshold(self):
+        a = BoundingBox(0, 0, 0, 10, 10, 10)
+        b = BoundingBox(9, 9, 9, 30, 30, 30)
+        self.assertFalse(a.overlaps(b, threshold=5))
+
 
 if __name__ == '__main__':
     unittest.main()

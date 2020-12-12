@@ -44,9 +44,11 @@ class TestGraph(unittest.TestCase):
         graph.add_edge(4, 5)
         graph.add_edge(5, 0)
         self.assertEqual(graph.all_vertices(), {0, 1, 2, 3, 4, 5})
+        print(len(graph.all_vertices()))
 
         graph.remove_vertex(0)
 
+        print(len(graph.all_vertices()))
         self.assertEqual(graph.all_vertices(), {1, 2, 3, 4, 5})
 
         self.assertCountEqual(graph.get_adjacency_list()[1], [2, 4])

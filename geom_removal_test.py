@@ -43,12 +43,61 @@ class TestGeomRemoval(unittest.TestCase):
         display.FitAll()
         start_display()
 
+    def test_node_equality_same_node(self):
+        all_solids = split_compound(self.compound_HE)[:1]
+        node = Node(all_solids[0])
+        self.assertEqual(node, node)
+
+    def test_node_equality_deep_copy(self):
+        all_solids = split_compound(self.compound_HE)[:1]
+        node = Node(all_solids[0])
+        self.assertEqual(node, copy.deepcopy(node))
+
+    def test_nodes_can_be_removed_from_graph(self):
+        all_solids = split_compound(self.compound_HE)[:1]
+        graph = create_solid_graph(all_solids)
+        self.assertEqual(1, len(graph.all_vertices()))
+        nodes = graph.all_vertices()
+        node_to_remove = copy.deepcopy(nodes.pop())
+        graph.remove_vertex(node_to_remove)
+        self.assertEqual(0, len(graph.all_vertices()))
+
+    def test_nodes_can_be_removed_from_graph_2(self):
+        all_solids = split_compound(self.compound_HE)
+        graph = create_solid_graph(all_solids)
+        self.assertEqual(22, len(graph.all_vertices()))
+        while graph.all_vertices():
+            graph.remove_vertex(copy.deepcopy(graph.all_vertices().pop()))
+        self.assertEqual(0, len(graph.all_vertices()))
+
     def test_remove_geom_HE(self):
-        result = remove_redundant_geom(self.compound_HE)
-        for index, r in enumerate(result):
-            val = index / len(result)
-            col = color(val, 1-val, 0)
-            display.DisplayShape(r.solid(), color=col)
+        result = remove_redundant_geom(self.compound_HE, display)
+        display.DisplayShape(self.compound_HE, color="WHITE", transparency=0.7)
+        display.DisplayShape(result)
+
+        display.FitAll()
+        start_display()
+
+    def test_remove_geom_VT(self):
+        result = remove_redundant_geom(self.compound_VT, display)
+        display.DisplayShape(self.compound_VT, color="WHITE", transparency=0.7)
+        display.DisplayShape(result)
+
+        display.FitAll()
+        start_display()
+
+    def test_remove_geom_GE(self):
+        result = remove_redundant_geom(self.compound_GE, display)
+        display.DisplayShape(self.compound_GE, color="WHITE", transparency=0.7)
+        display.DisplayShape(result)
+
+        display.FitAll()
+        start_display()
+
+    def test_remove_geom_Q4(self):
+        result = remove_redundant_geom(self.compound_Q4, display)
+        display.DisplayShape(self.compound_Q4, color="WHITE", transparency=0.7)
+        display.DisplayShape(result)
 
         display.FitAll()
         start_display()

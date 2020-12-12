@@ -44,42 +44,42 @@ class BoundingBox():
     def y_length(self):
         return self._ymax - self._ymin
 
-    def _xy_rectangles_overlap(self, other):
+    def _xy_rectangles_overlap(self, other, threshold=0):
         assert isinstance(other, BoundingBox)
 
-        if self._xmin >= other._xmax or other._xmin >= self._xmax:
+        if self._xmin - other._xmax >= -threshold or other._xmin - self._xmax >= -threshold:
             return False
 
-        if self._ymin >= other._ymax or other._ymin >= self._ymax:
+        if self._ymin - other._ymax >= -threshold or other._ymin - self._ymax >= -threshold:
             return False
 
         return True
 
-    def _xz_rectangles_overlap(self, other):
+    def _xz_rectangles_overlap(self, other, threshold=0):
         assert isinstance(other, BoundingBox)
 
-        if self._xmin >= other._xmax or other._xmin >= self._xmax:
-            return False
+        if self._xmin - other._xmax >= -threshold or other._xmin - self._xmax >= -threshold:
+                return False
 
-        if self._zmin >= other._zmax or other._zmin >= self._zmax:
+        if self._zmin - other._zmax >= -threshold or other._zmin - self._zmax >= -threshold:
             return False
 
         return True
 
-    def _yz_rectangles_overlap(self, other):
+    def _yz_rectangles_overlap(self, other, threshold=0):
         assert isinstance(other, BoundingBox)
 
-        if self._ymin >= other._ymax or other._ymin >= self._ymax:
+        if self._ymin - other._ymax >= -threshold or other._ymin - self._ymax >= -threshold:
             return False
 
-        if self._zmin >= other._zmax or other._zmin >= self._zmax:
+        if self._zmin - other._zmax >= -threshold or other._zmin - self._zmax >= -threshold:
             return False
 
         return True
 
-    def overlaps(self, other):
+    def overlaps(self, other, threshold=0):
         # TODO: Add overlap threshold if needed
-        return self._xy_rectangles_overlap(other) or self._xz_rectangles_overlap(other) or self._yz_rectangles_overlap(other)
+        return self._xy_rectangles_overlap(other, threshold) or self._xz_rectangles_overlap(other, threshold) or self._yz_rectangles_overlap(other, threshold)
 
     def dist(self, other):
         """
@@ -130,3 +130,12 @@ class BoundingBox():
         ]
 
         return max([pnt.dist(c) for c in corners])
+
+    def __hash__(self):
+        return hash((self._xmin, self._xmax, self._ymin, self._ymax, self._zmin, self._zmax))
+
+    def __eq__(self, other):
+        return self._xmin == other._xmin and self._ymin == other._ymin and self._zmin == other._zmin and self._xmax == other._xmax and self._ymax == other._ymax and self._zmax == other._zmax
+
+    def __ne__(self, other):
+        return not self.__eq__(other)

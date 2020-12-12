@@ -1,6 +1,7 @@
 from OCCUtils.base import GlobalProperties
 from OCCUtils.Common import project_point_on_plane, normal_vector_from_plane, intersect_shape_by_line, assert_isdone, point_in_solid
 from OCCUtils.solid import Solid
+from OCC.Extend.ShapeFactory import make_edge
 from OCC.Core.IntCurvesFace import IntCurvesFace_ShapeIntersector
 from util import split_compound
 from OCCUtils.base import GlobalProperties
@@ -39,25 +40,30 @@ class SolidFaceValidator():
     Handles checking a solid still projects to / represents the desired faces
     """
 
-    def __init__(self, compound):
+    def __init__(self, compound, display):
         self._compound = compound
         # self._xz_lines = self.iteratively_generate_lines_for_face(compound, PL_XZ, 100)
         # self._yz_lines = self.iteratively_generate_lines_for_face(compound, PL_YZ, 100)
         self._xz_lines = self.generate_lines_for_face(compound, PL_XZ)
         self._yz_lines = self.generate_lines_for_face(compound, PL_YZ)
+        self.display = display
 
-    def is_valid(self, compound):
+    def is_valid(self, compound, show=False):
         # checks if all lines intersect the shape.
         xz_intersections = []
         for l in self._xz_lines:
-            temp = self.get_shape_line_intersections(compound, l)
-            xz_intersections.append(temp)
+            if show:
+                self.display.DisplayShape(make_edge(l), color="RED")
+            temp = self.get_shape_line_intersections(compound, l, self.display, show)
+            if temp:
+                xz_intersections.append(temp)
         xz_valid = len(xz_intersections) == len(self._xz_lines)
 
         yz_intersections = []
         for l in self._yz_lines:
-            temp = self.get_shape_line_intersections(compound, l)
-            yz_intersections.append(temp)
+            temp = self.get_shape_line_intersections(compound, l, self.display, False)
+            if temp:
+                yz_intersections.append(temp)
         yz_valid = len(yz_intersections) == len(self._yz_lines)
 
         return xz_valid and yz_valid
@@ -159,7 +165,7 @@ class SolidFaceValidator():
         return new_pts
 
     @classmethod
-    def get_shape_line_intersections(cls, shape, line):
+    def get_shape_line_intersections(cls, shape, line, display, show):
         """
         Seems to return the intersection for the first face the line runs into
         """
@@ -169,5 +175,9 @@ class SolidFaceValidator():
         with assert_isdone(shape_inter, "failed to computer shape / line intersection"):
             intersections = [(shape_inter.Pnt(i), shape_inter.Face(i), line) for i in
                              range(1, shape_inter.NbPnt() + 1)]  # Indices start at 1 :(
+            if show:
+                display.DisplayShape(shape)
+                for i in intersections:
+                    display.DisplayShape(i[0], color="RED")
             return intersections
 

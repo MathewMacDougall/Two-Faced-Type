@@ -10,6 +10,10 @@ class Graph:
     def __init__(self):
         self.graph = defaultdict(list)
 
+    def add_node(self, v):
+        if v not in self.graph.keys():
+            self.graph[v] = []
+
     def add_edge(self, v1, v2):
         if v2 not in self.graph[v1]:
             self.graph[v1].append(v2)
@@ -17,7 +21,9 @@ class Graph:
             self.graph[v2].append(v1)
 
     def remove_vertex(self, v):
-        self.graph.pop(v, None)
+        foo = self.graph.pop(v, None)
+        # if foo is None:
+        #     print("ERROR. Didn't find vertex to remove")
         for vertex, adjacency in self.graph.items():
             try:
                 adjacency.remove(v)
@@ -25,7 +31,7 @@ class Graph:
                 pass
 
     def all_vertices(self):
-        return [k for k in self.graph.keys()]
+        return {k for k in self.graph.keys()}
 
     def get_adjacency_list(self):
         return copy.deepcopy(self.graph)
