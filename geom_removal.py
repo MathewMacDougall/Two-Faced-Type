@@ -98,10 +98,14 @@ def remove_redundant_geom(compound):
         new_graph = copy.deepcopy(graph)
         new_graph.remove_vertex(v)
         is_connected = new_graph.is_connected()
-        faces_valid = validator.is_removal_valid(v.solid())
-        if faces_valid and is_connected:
+        # Short-circuit if the removal is invalid before we check the validator.
+        # If is_connected=False but the validator reports "valid", the validator's
+        # internal state will be changed but it won't be in sync with the actual shape anymore
+        if not is_connected:
+            continue
+
+        if validator.remove_if_valid(v.solid()):
             graph = copy.deepcopy(new_graph)
-            validator.remove(v.solid())
 
     final_geom = create_compound(graph.all_vertices())
 

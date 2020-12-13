@@ -72,14 +72,14 @@ class TestSolidFaceValidator(unittest.TestCase):
         validator = SolidFaceValidator(self.compound_HE)
         # Bottom-right "leg" of the H. If removed the H will be invalid
         solid = split_compound(self.compound_HE)[7]
-        self.assertFalse(validator.is_removal_valid(solid))
+        self.assertFalse(validator.remove_if_valid(solid))
 
     def test_is_valid_HE_with_redundant_solid_removed(self):
         validator = SolidFaceValidator(self.compound_HE)
         # Top-right corner H
         solid = split_compound(self.compound_HE)[0]
         display.DisplayShape(solid)
-        self.assertTrue(validator.is_removal_valid(solid))
+        self.assertTrue(validator.remove_if_valid(solid))
 
 
 if __name__ == '__main__':

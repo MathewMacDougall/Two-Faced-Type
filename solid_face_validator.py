@@ -22,7 +22,7 @@ class SolidFaceValidator():
         self._xz_intersections = self.get_intersections_for_face(solids, PL_XZ)
         self._yz_intersections = self.get_intersections_for_face(solids, PL_YZ)
 
-    def is_removal_valid(self, solid):
+    def remove_if_valid(self, solid):
         """
         Checks if the shape resulting from removing the given solid is valid. If it is, returns True
         and removes the solid from its internal representation. Otherwise returns false and the internal
@@ -32,18 +32,15 @@ class SolidFaceValidator():
         """
         assert isinstance(solid, TopoDS_Solid)
         _solid = Solid(solid)
-        affected_lists = [l for l in self._xz_intersections + self._yz_intersections if _solid in l and len(l) == 1]
-        if affected_lists:
+        affected_lists = [l for l in self._xz_intersections + self._yz_intersections if _solid in l]
+        bad_lists = [l for l in affected_lists if len(l) == 1]
+        if bad_lists:
             return False
 
-        return True
+        for l in affected_lists:
+            l.remove(Solid(solid))
 
-    def remove(self, solid):
-        for l in self._xz_intersections + self._yz_intersections:
-            try:
-                l.remove(Solid(solid))
-            except ValueError:
-                pass
+        return True
 
     @classmethod
     def get_intersections_for_face(self, solids, pln):
