@@ -55,3 +55,25 @@ class Graph:
         num_nodes = len(self.graph.keys())
         return num_visited == num_nodes
 
+    def get_adjacent(self, node):
+        if self.node_exists(node):
+            return self.graph[node]
+        else:
+            return []
+
+    def node_exists(self, node):
+        return node in self.graph
+
+    def bfs(self, node, depth=0, visited=None):
+        if visited is None:
+            visited = set()
+        if depth==0:
+            # return [a for a in self.graph[node] if a not in visited]
+            return [node]
+
+        result = []
+        for a in [n for n in self.graph[node] if n not in visited]:
+            visited.add(a)
+            result += self.bfs(a, depth-1, visited)
+        return result
+
