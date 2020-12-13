@@ -90,7 +90,7 @@ def create_compound(nodes):
     # print("res ", aRes)
     return aRes
 
-def remove_redundant_geom(compound, display):
+def remove_redundant_geom(compound, display=None):
     validator = SolidFaceValidator(compound, display)
     all_solids = split_compound(compound)
     graph = create_solid_graph(all_solids)

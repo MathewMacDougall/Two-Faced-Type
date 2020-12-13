@@ -1,6 +1,7 @@
 from enum import Enum
 import copy
 
+import math
 from OCC.Core import BRepGProp
 from OCC.Core.BOPAlgo import BOPAlgo_Builder
 from OCC.Core.BRepGProp import BRepGProp_Face
@@ -197,3 +198,12 @@ def split_compound(compound):
     top = Topo(bo.Shape())
     result = [s for s in top.solids()]
     return result
+
+def distance(p1, p2):
+    assert isinstance(p1, gp_Pnt)
+    assert isinstance(p2, gp_Pnt)
+
+    x_dist = p1.X() - p2.X()
+    y_dist = p1.Y() - p2.Y()
+    z_dist = p1.Z() - p2.Z()
+    return math.sqrt(x_dist ** 2 + y_dist ** 2 + z_dist ** 2)

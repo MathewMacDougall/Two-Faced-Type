@@ -27,11 +27,11 @@ from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Transform, BRepBuilderAPI_Mak
 from OCC.Core.gp import gp_Trsf, gp_Ax1, gp_Vec, gp_Pnt
 from constants import *
 import math
-from OCC.Core.StlAPI import StlAPI_Writer
 import argparse
 from pathlib import Path
 import os
 import errno
+from geom_removal import remove_redundant_geom
 from OCC.Core.TopoDS import TopoDS_Compound, TopoDS_Solid, TopoDS_Shape, TopoDS_Face
 
 logger = logging.getLogger("TFT")
@@ -96,26 +96,12 @@ def offset_shapes(shapes, height_mm):
 
     return offset_letters
 
-def save_to_stl(shapes, dirpath=Path.home()):
-    assert isinstance(shapes, list)
 
-    try:
-        os.makedirs(Path(dirpath))
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
-
-    stl_writer = StlAPI_Writer()
-    stl_writer.SetASCIIMode(True)
-    for index, shape in enumerate(shapes):
-        filepath = Path(dirpath, "combined_shape_" + str(index + 1) + ".stl")
-        stl_writer.Write(shape, str(filepath))
 
 # TODO: should creating a disjointed / non-contiguous
 # solid make a cutting extrusion invalid?
 def remove_redundant_geometry(shapes, height_mm):
-    # Do nothing right now. Still testing algos :(
-    return shapes
+    return [remove_redundant_geom(shape) for shape in shapes]
 
 # Also, useful site to make svg letters: https://maketext.io/
 # My blessed documentation: https://old.opencascade.com/doc/occt-6.9.0/refman/html/class_geom2d___b_spline_curve.html#a521ec5263443aca0d5ec43cd3ed32ac6
