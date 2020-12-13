@@ -94,16 +94,14 @@ def remove_redundant_geom(compound):
     vertices_to_remove = list(graph.all_vertices())
     vertices_to_remove.sort(key=lambda x: x.bbox().max_dist_to_point(corner), reverse=True)
 
-    solids_to_remove = []
     for index, v in enumerate(vertices_to_remove):
-        faces_valid = validator.is_valid(solids_to_remove + [v.solid()])
+        faces_valid = validator.remove_if_valid(v.solid())
         new_graph = copy.deepcopy(graph)
         new_graph.remove_vertex(v)
         is_connected = new_graph.is_connected()
 
         if faces_valid and is_connected:
             graph = copy.deepcopy(new_graph)
-            solids_to_remove.append(v.solid())
 
     final_geom = create_compound(graph.all_vertices())
 

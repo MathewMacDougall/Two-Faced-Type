@@ -1,4 +1,6 @@
+from OCC.Core.TopoDS import TopoDS_Solid
 from OCCUtils.Common import project_point_on_plane, normal_vector_from_plane, intersect_shape_by_line, assert_isdone
+import itertools
 from OCCUtils.solid import Solid as OCCUtilsSolid
 from collections import defaultdict
 from OCC.Core.IntCurvesFace import IntCurvesFace_ShapeIntersector
@@ -20,22 +22,22 @@ class SolidFaceValidator():
         self._xz_intersections = self.get_intersections_for_face(solids, PL_XZ)
         self._yz_intersections = self.get_intersections_for_face(solids, PL_YZ)
 
-    def is_valid(self, removed_solids):
-        if not removed_solids:
-            # This is a bit of a hacky assumption right now that if something isn't valid
-            # it won't be removed, and if it is valid it will be removed
-            return True
-        _removed_solid = Solid(removed_solids[0])
-        affected_lists = [l for l in self._xz_intersections + self._yz_intersections if _removed_solid in l and len(l) == 1]
+    def remove_if_valid(self, solid):
+        """
+        Checks if the shape resulting from removing the given solid is valid. If it is, returns True
+        and removes the solid from its internal representation. Otherwise returns false and the internal
+        representation is unchanged
+        :param solid:
+        :return:
+        """
+        assert isinstance(solid, TopoDS_Solid)
+        _solid = Solid(solid)
+        affected_lists = [l for l in self._xz_intersections + self._yz_intersections if _solid in l and len(l) == 1]
         if affected_lists:
             return False
+
         for l in affected_lists:
-            l.remove(_removed_solid)
-        # for intersections in self._xz_intersections + self._yz_intersections:
-        #     if _removed_solid in intersections and len(intersections) <=
-        #     if len([s for s in _removed_solids if s in intersections]) == len(intersections):
-        #         # all solids a line intersects with have been removed
-        #         return False
+            l.remove(_solid)
 
         return True
 
@@ -60,6 +62,18 @@ class SolidFaceValidator():
         normal_vec = normal_vector_from_plane(pln)
         normal_dir = gp_Dir(normal_vec)
         lines = [gp_Lin(p, normal_dir) for p in pts]
+
+        # remove redundant lines
+        groups = []
+        for l in lines:
+            for g in groups:
+                if any([l.Distance(gl) < 0.0000000001 for gl in g]):
+                    g.add(l)
+                    break
+            else:
+                groups.append({l})
+
+        lines = [g.pop() for g in groups]
 
         # We have to use lists here rather than sets or dicts, because the solids undergo very minor deviations
         # while operated on by OCC, so we can't get matching hashes

@@ -68,34 +68,18 @@ class TestSolidFaceValidator(unittest.TestCase):
         expected_all_intersected_solids = [Solid(s) for s in all_solids]
         self.assertCountEqual(expected_all_intersected_solids, all_intersected_solids)
 
-    def test_is_valid_default_HE(self):
-        validator = SolidFaceValidator(self.compound_HE)
-        self.assertTrue(validator.is_valid([]))
-
     def test_is_valid_HE_with_nonredundant_solid_removed(self):
         validator = SolidFaceValidator(self.compound_HE)
         # Bottom-right "leg" of the H. If removed the H will be invalid
         solid = split_compound(self.compound_HE)[7]
-        self.assertFalse(validator.is_valid([solid]))
+        self.assertFalse(validator.remove_if_valid(solid))
 
     def test_is_valid_HE_with_redundant_solid_removed(self):
         validator = SolidFaceValidator(self.compound_HE)
         # Top-right corner H
         solid = split_compound(self.compound_HE)[0]
         display.DisplayShape(solid)
-        self.assertTrue(validator.is_valid([solid]))
-
-    def test_is_valid_default_GE(self):
-        validator = SolidFaceValidator(self.compound_GE)
-        self.assertTrue(validator.is_valid([]))
-
-    def test_is_valid_default_VT(self):
-        validator = SolidFaceValidator(self.compound_VT)
-        self.assertTrue(validator.is_valid([]))
-
-    def test_is_valid_default_Q4(self):
-        validator = SolidFaceValidator(self.compound_Q4)
-        self.assertTrue(validator.is_valid([]))
+        self.assertTrue(validator.remove_if_valid(solid))
 
 
 if __name__ == '__main__':
