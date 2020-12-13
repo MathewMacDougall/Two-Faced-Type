@@ -83,62 +83,21 @@ def create_compound(nodes):
         aBuilder.Add(aRes, n.solid())
     return aRes
 
-from unittest.mock import MagicMock
-def remove_redundant_geom(compound, display=MagicMock()):
+def remove_redundant_geom(compound):
     validator = SolidFaceValidator(compound)
     all_solids = split_compound(compound)
     graph = create_solid_graph(all_solids)
-    og_graph = copy.deepcopy(graph)
 
     props = GlobalProperties(compound)
     x1, y1, z1, x2, y2, z2 = props.bbox()
     corner = Point(x2, y1, z2)
     vertices_to_remove = list(graph.all_vertices())
-    vertices_to_remove.sort(key=lambda x: x.bbox().min_dist_to_point(corner), reverse=True)
+    vertices_to_remove.sort(key=lambda x: x.bbox().max_dist_to_point(corner), reverse=True)
 
     for index, v in enumerate(vertices_to_remove):
-        # num = 0
-        # if index == num:
-        #     display.DisplayShape(v.solid(), color="RED", transparency=0.7)
-        # elif index < num:
-        #     display.DisplayShape(v.solid(), color="CYAN", transparency=0.7)
-        # else:
-        #     continue
-        #
-        # # Test if removing this piece results in geometry where only the edges/corners of two solids are touching
-        # adjacent_nodes = og_graph.bfs(v, depth=1)
-        # for a in adjacent_nodes:
-        #     display.DisplayShape(a.solid(), color="GREEN", transparency=0.7)
-
         new_graph = copy.deepcopy(graph)
         new_graph.remove_vertex(v)
         is_connected = new_graph.is_connected()
-
-        adjacent = graph.get_adjacent(v)
-        risky = []
-        for i in range(len(adjacent)-1):
-            for k in range(1, len(adjacent)):
-                a1 = adjacent[i]
-                a2 = adjacent[k]
-                # display.DisplayShape(a1.solid(), color="GREEN", transparency=0.0)
-                # display.DisplayShape(a2.solid(), color="RED", transparency=0.7)
-                bfs = new_graph.bfs(a1, depth=2)
-                # for q in bfs:
-                #     display.DisplayShape(q.solid(), color="BLUE", transparency=0.7)
-                if a2 not in bfs:
-                    risky.append((a1, a2))
-
-                # if i == 0:
-                #     return None
-
-        # for r1, r2 in risky:
-        #     display.DisplayShape(r1.solid(), color="BLUE", transparency=0.7)
-        #     display.DisplayShape(r2.solid(), color="BLUE", transparency=0.7)
-
-        if risky:
-            continue
-
-
         # Short-circuit if the removal is invalid before we check the validator.
         # If is_connected=False but the validator reports "valid", the validator's
         # internal state will be changed but it won't be in sync with the actual shape anymore

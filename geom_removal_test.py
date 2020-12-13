@@ -73,20 +73,6 @@ class TestGeomRemoval(unittest.TestCase):
             graph.remove_vertex(copy.deepcopy(graph.all_vertices().pop()))
         self.assertEqual(0, len(graph.all_vertices()))
 
-    def test_create_solid_graph(self):
-        all_solids = split_compound(self.compound_HE)
-        graph = create_solid_graph(all_solids)
-
-        all_nodes = list(graph.all_vertices())
-        for n in all_nodes:
-            display.DisplayShape(n.solid(), color="WHITE", transparency=0.7)
-
-        node = all_nodes[6]
-        display.DisplayShape(node.solid(), color="RED", transparency=0.7)
-        for a in graph.get_adjacent(node):
-            display.DisplayShape(a.solid(), color="CYAN", transparency=0.7)
-        start_display()
-
     def test_remove_geom_HE(self):
         result = remove_redundant_geom(self.compound_HE)
         display.DisplayShape(self.compound_HE, color="WHITE", transparency=0.7)
@@ -112,7 +98,7 @@ class TestGeomRemoval(unittest.TestCase):
         start_display()
 
     def test_remove_geom_Q4(self):
-        result = remove_redundant_geom(self.compound_Q4, display)
+        result = remove_redundant_geom(self.compound_Q4)
         display.DisplayShape(self.compound_Q4, color="WHITE", transparency=0.7)
         display.DisplayShape(result)
 
