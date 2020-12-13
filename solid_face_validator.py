@@ -21,11 +21,21 @@ class SolidFaceValidator():
         self._yz_intersections = self.get_intersections_for_face(solids, PL_YZ)
 
     def is_valid(self, removed_solids):
-        _removed_solids = [Solid(rs) for rs in removed_solids]
-        for intersections in self._xz_intersections + self._yz_intersections:
-            if len([s for s in _removed_solids if s in intersections]) == len(intersections):
-                # all solids a line intersects with have been removed
-                return False
+        if not removed_solids:
+            # This is a bit of a hacky assumption right now that if something isn't valid
+            # it won't be removed, and if it is valid it will be removed
+            return True
+        _removed_solid = Solid(removed_solids[0])
+        affected_lists = [l for l in self._xz_intersections + self._yz_intersections if _removed_solid in l and len(l) == 1]
+        if affected_lists:
+            return False
+        for l in affected_lists:
+            l.remove(_removed_solid)
+        # for intersections in self._xz_intersections + self._yz_intersections:
+        #     if _removed_solid in intersections and len(intersections) <=
+        #     if len([s for s in _removed_solids if s in intersections]) == len(intersections):
+        #         # all solids a line intersects with have been removed
+        #         return False
 
         return True
 

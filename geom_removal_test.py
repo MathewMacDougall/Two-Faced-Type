@@ -7,8 +7,8 @@ from geom_removal import *
 from OCCUtils.Common import random_color, color
 from OCC.Display.SimpleGui import init_display
 
-display, start_display, _, _ = init_display()
-# display, start_display, _, _ = MagicMock(), MagicMock(), None, None
+# display, start_display, _, _ = init_display()
+display, start_display, _, _ = MagicMock(), MagicMock(), None, None
 
 class TestGeomRemoval(unittest.TestCase):
     def setUp(self):
