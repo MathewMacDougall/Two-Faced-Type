@@ -33,6 +33,7 @@ class Solid():
         return self._solid
 
     def __hash__(self):
+        # TODO: remove this function? Or force to not be used?
         return self._bbox.__hash__()
 
     def __eq__(self, other):
