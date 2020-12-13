@@ -3,8 +3,11 @@ from unittest.mock import MagicMock
 import pathlib
 from OCC.Display.SimpleGui import init_display
 from OCC.Extend.ShapeFactory import make_edge
+from OCCUtils.Common import random_color
+
 from face_factory import FaceFactory
 from util import *
+from solid import Solid
 from combiner import combine_faces
 from solid_face_validator import SolidFaceValidator
 
@@ -28,53 +31,71 @@ class TestSolidFaceValidator(unittest.TestCase):
         self.compound_VT = combine_faces(self.face_V, self.face_T, height_mm)
         self.compound_Q4 = combine_faces(self.face_Q, self.face_4, height_mm)
 
-    def test_generate_lines_for_face_HE_XZ_plane(self):
-        lines = SolidFaceValidator.generate_lines_for_face(self.compound_HE, PL_XZ)
+    def test_generate_intersections_for_face_HE_XZ_plane(self):
+        all_solids = split_compound(self.compound_HE)
+        intersections = SolidFaceValidator.get_intersections_for_face(all_solids, PL_XZ)
 
-        display.DisplayShape(self.compound_HE, transparency=0.8)
-        for l in lines:
-            display.DisplayShape(make_edge(l), color="RED")
-        start_display()
+        self.assertEqual(len(intersections), len(all_solids))
+        all_intersected_solids = list({s for inter in intersections for s in inter})
+        expected_all_intersected_solids = [Solid(s) for s in all_solids]
+        self.assertCountEqual(expected_all_intersected_solids, all_intersected_solids)
+
 
     def test_generate_lines_for_face_HE_YZ_plane(self):
-        lines = SolidFaceValidator.generate_lines_for_face(self.compound_HE, PL_YZ)
+        all_solids = split_compound(self.compound_HE)
+        intersections = SolidFaceValidator.get_intersections_for_face(all_solids, PL_YZ)
 
-        display.DisplayShape(self.compound_HE, transparency=0.8)
-        for l in lines:
-            display.DisplayShape(make_edge(l), color="RED")
-        start_display()
+        self.assertEqual(len(intersections), len(all_solids))
+        all_intersected_solids = list({s for inter in intersections for s in inter})
+        expected_all_intersected_solids = [Solid(s) for s in all_solids]
+        self.assertCountEqual(expected_all_intersected_solids, all_intersected_solids)
 
     def test_generate_lines_for_face_GE_XZ_plane(self):
-        lines = SolidFaceValidator.generate_lines_for_face(self.compound_GE, PL_XZ)
+        all_solids = split_compound(self.compound_GE)
+        intersections = SolidFaceValidator.get_intersections_for_face(all_solids, PL_XZ)
 
-        display.DisplayShape(self.compound_GE, transparency=0.8)
-        for l in lines:
-            display.DisplayShape(make_edge(l), color="RED")
-        start_display()
+        self.assertEqual(len(intersections), len(all_solids))
+        all_intersected_solids = list({s for inter in intersections for s in inter})
+        expected_all_intersected_solids = [Solid(s) for s in all_solids]
+        self.assertCountEqual(expected_all_intersected_solids, all_intersected_solids)
 
     def test_generate_lines_for_face_Q4_XZ_plane(self):
-        lines = SolidFaceValidator.generate_lines_for_face(self.compound_Q4, PL_XZ)
+        all_solids = split_compound(self.compound_Q4)
+        intersections = SolidFaceValidator.get_intersections_for_face(all_solids, PL_XZ)
 
-        display.DisplayShape(self.compound_Q4, transparency=0.8)
-        for l in lines:
-            display.DisplayShape(make_edge(l), color="RED")
-        start_display()
+        self.assertEqual(len(intersections), len(all_solids))
+        all_intersected_solids = list({s for inter in intersections for s in inter})
+        expected_all_intersected_solids = [Solid(s) for s in all_solids]
+        self.assertCountEqual(expected_all_intersected_solids, all_intersected_solids)
 
     def test_is_valid_default_HE(self):
         validator = SolidFaceValidator(self.compound_HE)
-        self.assertTrue(validator.is_valid(self.compound_HE))
+        self.assertTrue(validator.is_valid([]))
+
+    def test_is_valid_HE_with_nonredundant_solid_removed(self):
+        validator = SolidFaceValidator(self.compound_HE)
+        # Bottom-right "leg" of the H. If removed the H will be invalid
+        solid = split_compound(self.compound_HE)[7]
+        self.assertFalse(validator.is_valid([solid]))
+
+    def test_is_valid_HE_with_redundant_solid_removed(self):
+        validator = SolidFaceValidator(self.compound_HE)
+        # Top-right corner H
+        solid = split_compound(self.compound_HE)[0]
+        display.DisplayShape(solid)
+        self.assertTrue(validator.is_valid([solid]))
 
     def test_is_valid_default_GE(self):
         validator = SolidFaceValidator(self.compound_GE)
-        self.assertTrue(validator.is_valid(self.compound_GE))
+        self.assertTrue(validator.is_valid([]))
 
     def test_is_valid_default_VT(self):
         validator = SolidFaceValidator(self.compound_VT)
-        self.assertTrue(validator.is_valid(self.compound_VT))
+        self.assertTrue(validator.is_valid([]))
 
     def test_is_valid_default_Q4(self):
         validator = SolidFaceValidator(self.compound_Q4)
-        self.assertTrue(validator.is_valid(self.compound_Q4))
+        self.assertTrue(validator.is_valid([]))
 
 
 if __name__ == '__main__':

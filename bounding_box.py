@@ -137,5 +137,14 @@ class BoundingBox():
     def __eq__(self, other):
         return self._xmin == other._xmin and self._ymin == other._ymin and self._zmin == other._zmin and self._xmax == other._xmax and self._ymax == other._ymax and self._zmax == other._zmax
 
+    def eq_within_tolerance(self, other, tolerance=1e-6):
+        xmin_diff = abs(self._xmin - other._xmin) < tolerance
+        xmax_diff = abs(self._xmax - other._xmax) < tolerance
+        ymin_diff = abs(self._ymin - other._ymin) < tolerance
+        ymax_diff = abs(self._ymax - other._ymax) < tolerance
+        zmin_diff = abs(self._zmin - other._zmin) < tolerance
+        zmax_diff = abs(self._zmax - other._zmax) < tolerance
+        return all([xmin_diff, xmax_diff, ymin_diff, ymax_diff, zmin_diff, zmax_diff])
+
     def __ne__(self, other):
         return not self.__eq__(other)
