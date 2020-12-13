@@ -207,3 +207,14 @@ def distance(p1, p2):
     y_dist = p1.Y() - p2.Y()
     z_dist = p1.Z() - p2.Z()
     return math.sqrt(x_dist ** 2 + y_dist ** 2 + z_dist ** 2)
+
+def point_in_solid(solid, pnt, tolerance=1e-5):
+    from OCC.Core.BRepClass3d import BRepClass3d_SolidClassifier
+    from OCC.Core.TopAbs import TopAbs_ON, TopAbs_OUT, TopAbs_IN
+    _in_solid = BRepClass3d_SolidClassifier(solid, pnt, tolerance)
+    if _in_solid.State() == TopAbs_ON:
+        return None
+    if _in_solid.State() == TopAbs_OUT:
+        return False
+    if _in_solid.State() == TopAbs_IN:
+        return True

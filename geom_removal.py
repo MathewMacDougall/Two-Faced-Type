@@ -41,12 +41,6 @@ class Node():
         # and i haven't found another way to check for geometry equality yet. In theory the bbox
         # should be enough anyway for this use case
 
-        # solid_eq = Solid(self._solid) == Solid(other.solid())
-        # solid_eq2 = self._solid == other._solid
-        # s = to_string(Solid(self._solid))
-        # solid_eq2 = to_string(Solid(self._solid)) == to_string(other._solid)
-        # return bbox_eq and solid_eq
-
     def __ne__(self, other):
         return not self.__eq__(other)
 
@@ -87,11 +81,10 @@ def create_compound(nodes):
     aBuilder.MakeCompound(aRes)
     for n in nodes:
         aBuilder.Add(aRes, n.solid())
-    # print("res ", aRes)
     return aRes
 
-def remove_redundant_geom(compound, display=None):
-    validator = SolidFaceValidator(compound, display)
+def remove_redundant_geom(compound):
+    validator = SolidFaceValidator(compound)
     all_solids = split_compound(compound)
     graph = create_solid_graph(all_solids)
 
@@ -102,31 +95,19 @@ def remove_redundant_geom(compound, display=None):
     vertices_to_remove.sort(key=lambda x: x.bbox().max_dist_to_point(corner), reverse=True)
 
     for index, v in enumerate(vertices_to_remove):
-        num = -1
-        # if index > num:
-        #     continue
-        # if index < num:
-        #     display.DisplayShape(v.solid(), color="RED", transparency=0.7)
-        # else:
-        #     display.DisplayShape(v.solid(), color="CYAN", transparency=0.7)
         new_graph = copy.deepcopy(graph)
         new_graph.remove_vertex(v)
         new_compound = create_compound(new_graph.all_vertices())
-        # display.DisplayShape(new_compound, transparency=0.8)
-        faces_valid = validator.is_valid(new_compound, index == num)
+        faces_valid = validator.is_valid(new_compound)
         is_connected = new_graph.is_connected()
-        # for foo in new_graph.all_vertices():
-        #     display.DisplayShape(foo.solid(), color="BLUE", transparency=0.8)
 
         if faces_valid and is_connected:
-            print("{} solid removed".format(index))
             graph = copy.deepcopy(new_graph)
-        else:
-            print("{} solid not removed".format(index))
 
     final_geom = create_compound(graph.all_vertices())
 
     return final_geom
 
 
-
+def remove_redundant_geometry(shapes):
+    return [remove_redundant_geom(shape) for shape in shapes]

@@ -1,11 +1,14 @@
 import unittest
+from unittest.mock import MagicMock
 import pathlib
 from face_factory import FaceFactory
-from main import combine_faces
+from combiner import combine_faces
 from geom_removal import *
 from OCCUtils.Common import random_color, color
 from OCC.Display.SimpleGui import init_display
-display, start_display, add_menu, add_function_to_menu = init_display()
+
+# display, start_display, _, _ = init_display()
+display, start_display, _, _ = MagicMock(), MagicMock(), None, None
 
 class TestGeomRemoval(unittest.TestCase):
     def setUp(self):
@@ -32,7 +35,7 @@ class TestGeomRemoval(unittest.TestCase):
         x1, y1, z1, x2, y2, z2 = props.bbox()
 
         corner = Point(x2, y1, z2)
-        vertices = graph.all_vertices()
+        vertices = list(graph.all_vertices())
         vertices.sort(key=lambda x: x.bbox().max_dist_to_point(corner))
 
         for index, r in enumerate(vertices):
@@ -71,7 +74,7 @@ class TestGeomRemoval(unittest.TestCase):
         self.assertEqual(0, len(graph.all_vertices()))
 
     def test_remove_geom_HE(self):
-        result = remove_redundant_geom(self.compound_HE, display)
+        result = remove_redundant_geom(self.compound_HE)
         display.DisplayShape(self.compound_HE, color="WHITE", transparency=0.7)
         display.DisplayShape(result)
 
@@ -79,7 +82,7 @@ class TestGeomRemoval(unittest.TestCase):
         start_display()
 
     def test_remove_geom_VT(self):
-        result = remove_redundant_geom(self.compound_VT, display)
+        result = remove_redundant_geom(self.compound_VT)
         display.DisplayShape(self.compound_VT, color="WHITE", transparency=0.7)
         display.DisplayShape(result)
 
@@ -87,7 +90,7 @@ class TestGeomRemoval(unittest.TestCase):
         start_display()
 
     def test_remove_geom_GE(self):
-        result = remove_redundant_geom(self.compound_GE, display)
+        result = remove_redundant_geom(self.compound_GE)
         display.DisplayShape(self.compound_GE, color="WHITE", transparency=0.7)
         display.DisplayShape(result)
 
@@ -95,16 +98,12 @@ class TestGeomRemoval(unittest.TestCase):
         start_display()
 
     def test_remove_geom_Q4(self):
-        result = remove_redundant_geom(self.compound_Q4, display)
+        result = remove_redundant_geom(self.compound_Q4)
         display.DisplayShape(self.compound_Q4, color="WHITE", transparency=0.7)
         display.DisplayShape(result)
 
         display.FitAll()
         start_display()
-
-
-
-
 
 
 if __name__ == '__main__':

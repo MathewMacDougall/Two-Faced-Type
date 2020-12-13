@@ -1,14 +1,16 @@
 import unittest
+from unittest.mock import MagicMock
 import pathlib
-from OCCUtils.Common import random_color
-from OCC.Display.SimpleGui import init_display
 from constants import LINE_X, LINE_Y, LINE_Z
 from OCC.Extend.ShapeFactory import make_edge
+from OCCUtils.Common import random_color
+from OCC.Display.SimpleGui import init_display
 from face_factory import FaceFactory
 from util import *
-from main import combine_faces
+from combiner import combine_faces
 
-display, start_display, add_menu, add_function_to_menu = init_display()
+# display, start_display, _, _ = init_display()
+display, start_display = MagicMock(), MagicMock()
 
 class TestUtil(unittest.TestCase):
     def setUp(self):
@@ -37,13 +39,13 @@ class TestUtil(unittest.TestCase):
         perp_faces_VT = get_perp_faces(get_faces(self.compound_VT), gp_Vec(0, 1, 0))
         self.assertEqual(11, len(perp_faces_VT))
 
-        # for f in perp_faces_VT:
-        #     display.DisplayShape(f, transparency=0.7)
-        #
-        # display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
-        # display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
-        # display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
-        # start_display()
+        for f in perp_faces_VT:
+            display.DisplayShape(f, transparency=0.7)
+
+        display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
+        display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
+        display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
+        start_display()
 
     def test_get_perp_faces_YZ_plane(self):
         perp_faces_HE = get_perp_faces(get_faces(self.compound_HE), gp_Vec(1, 0, 0))
@@ -55,13 +57,13 @@ class TestUtil(unittest.TestCase):
         perp_faces_VT = get_perp_faces(get_faces(self.compound_VT), gp_Vec(1, 0, 0))
         self.assertEqual(13, len(perp_faces_VT))
 
-        # for f in perp_faces_VT:
-        #     display.DisplayShape(f, transparency=0.7)
-        #
-        # display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
-        # display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
-        # display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
-        # start_display()
+        for f in perp_faces_VT:
+            display.DisplayShape(f, transparency=0.7)
+
+        display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
+        display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
+        display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
+        start_display()
 
 
     def test_get_nonperp_faces_XZ_plane(self):
@@ -74,13 +76,13 @@ class TestUtil(unittest.TestCase):
         nonperp_faces_VT = get_nonperp_faces(get_faces(self.compound_VT), gp_Vec(0, 1, 0))
         self.assertEqual(6, len(nonperp_faces_VT))
 
-        # for f in nonperp_faces_VT:
-        #     display.DisplayShape(f, transparency=0.7)
-        #
-        # display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
-        # display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
-        # display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
-        # start_display()
+        for f in nonperp_faces_VT:
+            display.DisplayShape(f, transparency=0.7)
+
+        display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
+        display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
+        display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
+        start_display()
 
     def test_get_nonperp_faces_YZ_plane(self):
         nonperp_faces_HE = get_nonperp_faces(get_faces(self.compound_HE), gp_Vec(1, 0, 0))
@@ -92,17 +94,17 @@ class TestUtil(unittest.TestCase):
         nonperp_faces_VT = get_nonperp_faces(get_faces(self.compound_VT), gp_Vec(1, 0, 0))
         self.assertEqual(4, len(nonperp_faces_VT))
 
-        # for f in nonperp_faces_GE:
-        #     display.DisplayShape(f, transparency=0.7)
-        #
-        # display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
-        # display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
-        # display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
-        # start_display()
+        for f in nonperp_faces_GE:
+            display.DisplayShape(f, transparency=0.7)
+
+        display.DisplayShape(make_edge(LINE_X), update=True, color="RED")
+        display.DisplayShape(make_edge(LINE_Y), update=True, color="GREEN")
+        display.DisplayShape(make_edge(LINE_Z), update=True, color="BLUE")
+        start_display()
 
 
     def test_split_compound_HE(self):
-        result = split_compound(self.compound_HE, display)
+        result = split_compound(self.compound_HE)
         self.assertEqual(22, len(result))
 
         # Validated visually
@@ -114,7 +116,7 @@ class TestUtil(unittest.TestCase):
 
 
     def test_split_compound_VT(self):
-        result = split_compound(self.compound_VT, display)
+        result = split_compound(self.compound_VT)
         self.assertEqual(9, len(result))
 
         # Validated visually
@@ -125,7 +127,7 @@ class TestUtil(unittest.TestCase):
         start_display()
 
     def test_split_compound_GE(self):
-        result = split_compound(self.compound_GE, display)
+        result = split_compound(self.compound_GE)
         self.assertEqual(40, len(result))
 
         # Validated visually
@@ -136,7 +138,7 @@ class TestUtil(unittest.TestCase):
         start_display()
 
     def test_split_compound_Q4(self):
-        result = split_compound(self.compound_Q4, display)
+        result = split_compound(self.compound_Q4)
         self.assertEqual(65, len(result))
 
         # Validated visually
