@@ -22,7 +22,10 @@ class SolidFaceValidator():
         self._xz_intersections = self.get_intersections_for_face(solids, PL_XZ)
         self._yz_intersections = self.get_intersections_for_face(solids, PL_YZ)
 
-    def remove_if_valid(self, solid):
+    def is_valid(self):
+        return all([len(l) != 0 for l in self._xz_intersections + self._yz_intersections])
+
+    def is_removal_valid(self, solid):
         """
         Checks if the shape resulting from removing the given solid is valid. If it is, returns True
         and removes the solid from its internal representation. Otherwise returns false and the internal
@@ -37,10 +40,14 @@ class SolidFaceValidator():
         if bad_lists:
             return False
 
-        for l in affected_lists:
-            l.remove(Solid(solid))
-
         return True
+
+    def remove(self, solid):
+        _solid = Solid(solid)
+        affected_lists = [l for l in self._xz_intersections + self._yz_intersections if _solid in l]
+        for l in affected_lists:
+            l.remove(_solid)
+
 
     @classmethod
     def get_intersections_for_face(self, solids, pln):
