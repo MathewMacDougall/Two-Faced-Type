@@ -45,3 +45,15 @@ class Solid():
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+
+def get_solids_with_touching_bbox(solids, solid):
+    assert isinstance(solids, list)
+    assert isinstance(solid, Solid)
+
+    result = []
+    for s in solids:
+        if s != solid and s.bbox().dist(solid.bbox()) < 1e-3:
+            result.append(s)
+
+    return result

@@ -1,6 +1,9 @@
 import unittest
 from unittest.mock import MagicMock
 import pathlib
+
+from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeFace
+
 from constants import LINE_X, LINE_Y, LINE_Z
 from OCC.Extend.ShapeFactory import make_edge
 from OCCUtils.Common import random_color
@@ -147,6 +150,52 @@ class TestUtil(unittest.TestCase):
 
         display.FitAll()
         start_display()
+
+    def test_get_points_in_plane_coordinates_overlapping_faces(self):
+        face1 = Face(BRepBuilderAPI_MakeFace(PL_XZ, 0.0, 10.0, 0.0, 10.0).Face())
+        face2 = Face(BRepBuilderAPI_MakeFace(PL_XZ, 0.0, 10.0, 0.0, 10.0).Face())
+
+        points1, points2 = get_points_in_plane_coordinates(face1, face2)
+
+        self.assertEqual(4, len(points1))
+        self.assertEqual(4, len(points2))
+        # y-coordinate can be flipped depending on the direction of the normal vector of the plane
+        self.assertCountEqual([(0, 0), (0, -10), (10, 0), (10, -10)], points1)
+        self.assertCountEqual([(0, 0), (0, -10), (10, 0), (10, -10)], points2)
+
+
+    def test_faces_overlap_nonparallel_faces(self):
+        face_xz = BRepBuilderAPI_MakeFace(PL_XZ, 0.0, 10.0, 0.0, 10.0).Face()
+        face_yz = BRepBuilderAPI_MakeFace(PL_YZ, 0.0, 10.0, 0.0, 10.0).Face()
+
+        self.assertFalse(is_faces_overlap(face_xz, face_yz))
+
+    def test_faces_overlap_parallel_planar_faces_full_overlap(self):
+        face_xz = BRepBuilderAPI_MakeFace(PL_XZ, 0.0, 10.0, 0.0, 10.0).Face()
+        face_yz = BRepBuilderAPI_MakeFace(PL_XZ, 0.0, 10.0, 0.0, 10.0).Face()
+
+        self.assertTrue(is_faces_overlap(face_xz, face_yz))
+
+    def test_faces_overlap_parallel_planar_faces_partial_overlap(self):
+        face_xz = BRepBuilderAPI_MakeFace(PL_XZ, 0.0, 10.0, 0.0, 10.0).Face()
+        face_yz = BRepBuilderAPI_MakeFace(PL_XZ, 5.0, 15.0, 5.0, 15.0).Face()
+
+        self.assertTrue(is_faces_overlap(face_xz, face_yz))
+
+    def test_faces_overlap_parallel_planar_faces_corner_touching(self):
+        face_xz = BRepBuilderAPI_MakeFace(PL_XZ, 0.0, 10.0, 0.0, 10.0).Face()
+        face_yz = BRepBuilderAPI_MakeFace(PL_XZ, 10.0, 20.0, 10.0, 20.0).Face()
+
+        self.assertFalse(is_faces_overlap(face_xz, face_yz))
+
+    def test_faces_overlap_parallel_planar_faces_no_overlap(self):
+        face_xz = BRepBuilderAPI_MakeFace(PL_XZ, 0.0, 10.0, 0.0, 10.0).Face()
+        face_yz = BRepBuilderAPI_MakeFace(PL_XZ, 20.0, 30.0, 20.0, 30.0).Face()
+
+        self.assertFalse(is_faces_overlap(face_xz, face_yz))
+
+
+
 
 
 if __name__ == '__main__':

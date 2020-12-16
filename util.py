@@ -1,6 +1,10 @@
 from enum import Enum
+from OCCUtils.Topology import Topo, WireExplorer
+from OCC.Core.BRep import BRep_Tool
 import copy
 
+from shapely.geometry import Polygon
+import numpy as np
 import math
 from OCC.Core import BRepGProp
 from OCC.Core.BOPAlgo import BOPAlgo_Builder
@@ -218,3 +222,98 @@ def point_in_solid(solid, pnt, tolerance=1e-5):
         return False
     if _in_solid.State() == TopAbs_IN:
         return True
+
+def get_points_in_plane_coordinates(face1, face2):
+    assert isinstance(face1, Face)
+    assert isinstance(face2, Face)
+    assert face1.is_planar()
+    assert face2.is_planar()
+    # TODO: also check planes are the same
+
+    #https://stackoverflow.com/questions/49769459/convert-points-on-a-3d-plane-to-2d-coordinates
+    a = face1.parameter_to_point(0, 0)
+    b = face1.parameter_to_point(5, 0)
+    c = face1.parameter_to_point(0, 5)
+    A = np.array([a.X(), a.Y(), a.Z()])
+    B = np.array([b.X(), b.Y(), b.Z()])
+    C = np.array([c.X(), c.Y(), c.Z()])
+    AB = B-A
+    AC = C-A
+    N = np.cross(AB, AC)
+    uAB = AB / np.linalg.norm(AB)
+    U = uAB
+    uN = N / np.linalg.norm(N)
+    V = np.cross(U, uN)
+    u = A + U
+    v = A + V
+    n = A + uN
+    mat_D = np.array([[0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [1, 1, 1, 1]])
+    mat_S = np.array([[A[0], u[0], v[0], n[0]], [A[1], u[1], v[1], n[1]], [A[2], u[2], v[2], n[2]], [1, 1, 1, 1]])
+    M = np.matmul(mat_D, np.linalg.inv(mat_S))
+
+    face1_points = []
+    # face1_vertices = Topo(face1).vertices_from_face(face1)
+    face1_wires = Topo(face1).wires()
+    face1_wires = [w for w in face1_wires]
+    assert len(face1_wires) == 1
+    face1_wire = face1_wires[0]
+    # Need vertices to be in order to construct polygons later
+    face1_vertices = WireExplorer(face1_wire).ordered_vertices()
+    # return None, None
+    for vertex in face1_vertices:
+        pnt = BRep_Tool.Pnt(vertex)
+        v = np.array([pnt.X(), pnt.Y(), pnt.Z(), 1])
+        result = np.matmul(M, v)
+        face1_points.append((result[0], result[1]))
+
+    face2_points = []
+    # face2_vertices = Topo(face2).vertices_from_face(face2)
+    face2_wires = Topo(face2).wires()
+    face2_wires = [w for w in face2_wires]
+    assert len(face2_wires) == 1
+    face2_wire = face2_wires[0]
+    face2_vertices = WireExplorer(face2_wire).ordered_vertices()
+    for vertex in face2_vertices:
+        pnt = BRep_Tool.Pnt(vertex)
+        v = np.array([pnt.X(), pnt.Y(), pnt.Z(), 1])
+        result = np.matmul(M, v)
+        face2_points.append((result[0], result[1]))
+
+    return face1_points, face2_points
+
+
+def is_faces_overlap(face1, face2, threshold=1):
+    assert isinstance(face1, TopoDS_Face)
+    assert isinstance(face2, TopoDS_Face)
+
+    f1 = Face(face1)
+    f2 = Face(face2)
+
+    assert f1.is_planar()
+    assert f2.is_planar()
+
+    gprop1 = BRepGProp_Face(f1)
+    normal_point1 = gp_Pnt(0, 0, 0)
+    normal_vec1 = gp_Vec(0, 0, 0)
+    gprop1.Normal(0, 0, normal_point1, normal_vec1)
+
+    gprop2 = BRepGProp_Face(f2)
+    normal_point2 = gp_Pnt(0, 0, 0)
+    normal_vec2 = gp_Vec(0, 0, 0)
+    gprop2.Normal(0, 0, normal_point2, normal_vec2)
+
+    import numpy as np
+    normals_eq = np.linalg.norm(np.cross([normal_vec1.X(), normal_vec1.Y(), normal_vec1.Z()], [normal_vec2.X(), normal_vec2.Y(), normal_vec2.Z()])) < 0.01
+
+    if not normals_eq:
+        return False
+
+    points1, points2 = get_points_in_plane_coordinates(f1, f2)
+
+    poly1 = Polygon(points1)
+    poly2 = Polygon(points2)
+    intersection = poly1.intersects(poly2)
+    if not intersection:
+        return False
+    intersection_area = poly1.intersection(poly2).area
+    return intersection_area > threshold

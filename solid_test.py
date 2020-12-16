@@ -1,5 +1,6 @@
 import unittest
-from solid import Solid
+from solid import *
+from OCC.Core.BRepPrimAPI import BRepPrimAPI_MakeBox
 from unittest.mock import MagicMock
 import pathlib
 from OCC.Display.SimpleGui import init_display
@@ -43,6 +44,36 @@ class SolidTest(unittest.TestCase):
     def test_hash_equality(self):
         solid = Solid(split_compound(self.compound_HE)[0])
         self.assertEqual(solid.__hash__(), copy.deepcopy(solid).__hash__())
+
+    def test_get_solids_with_touching_bbox_adjacent_bbox(self):
+        solid1 = Solid(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), gp_Pnt(10, 10, 10)).Shape())
+        solid2 = Solid(BRepPrimAPI_MakeBox(gp_Pnt(10, 0, 0), gp_Pnt(20, 10, 10)).Shape())
+
+        solids = [solid1, solid2]
+        result = get_solids_with_touching_bbox(solids, solid1)
+        self.assertEqual(1, len(result))
+        self.assertEqual(solid2, result[0])
+
+        result2 = get_solids_with_touching_bbox(solids, solid2)
+        self.assertEqual(1, len(result2))
+        self.assertEqual(solid1, result2[0])
+
+    def test_get_solids_with_touching_bbox_corner_bbox(self):
+        solid1 = Solid(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), gp_Pnt(10, 10, 10)).Shape())
+        solid2 = Solid(BRepPrimAPI_MakeBox(gp_Pnt(10, 10, 10), gp_Pnt(20, 20, 20)).Shape())
+
+        solids = [solid1, solid2]
+        result = get_solids_with_touching_bbox(solids, solid1)
+        self.assertEqual(1, len(result))
+        self.assertEqual(solid2, result[0])
+
+    def test_get_solids_with_touching_bbox_nontouching(self):
+        solid1 = Solid(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), gp_Pnt(10, 10, 10)).Shape())
+        solid2 = Solid(BRepPrimAPI_MakeBox(gp_Pnt(10.1, 10, 10), gp_Pnt(20, 20, 20)).Shape())
+
+        solids = [solid1, solid2]
+        result = get_solids_with_touching_bbox(solids, solid1)
+        self.assertEqual(0, len(result))
 
 
 if __name__ == '__main__':
