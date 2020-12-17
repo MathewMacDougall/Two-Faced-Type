@@ -54,9 +54,6 @@ def create_solid_graph(solids):
         assert isinstance(node2, Node)
 
         return is_solids_adjacent(node1.solid(), node2.solid())
-        # overlap = node1.bbox().overlaps(node2.bbox(), threshold=1)
-        # close = node1.bbox().dist(node2.bbox()) < 0.1
-        # return overlap and close
 
     nodes = {Node(s) for s in solids}
     visited = set()

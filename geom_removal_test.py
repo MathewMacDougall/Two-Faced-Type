@@ -100,6 +100,18 @@ class TestGeomRemoval(unittest.TestCase):
         display.FitAll()
         start_display()
 
+    def test_remove_geom_Q4(self):
+        import time
+        start = time.time()
+        result = remove_redundant_geom(self.compound_Q4)
+        end = time.time()
+        print("test took: ", end-start)
+        display.DisplayShape(self.compound_Q4, color="WHITE", transparency=0.7)
+        display.DisplayShape(result)
+
+        display.FitAll()
+        start_display()
+
     def test_remove_geom_NL(self):
         result = remove_redundant_geom(self.compound_NL)
         display.DisplayShape(self.compound_NL, color="WHITE", transparency=0.7)
@@ -108,6 +120,9 @@ class TestGeomRemoval(unittest.TestCase):
         display.FitAll()
         start_display()
 
+    # TODO: Working much better (although slower).
+    # Just need to find a way to "plug holes" or prevent odd overhangs
+    # Probably can plug them later? The edge-discontinuities should be doable for sure
 
 if __name__ == '__main__':
     unittest.main()

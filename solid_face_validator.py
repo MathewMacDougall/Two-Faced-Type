@@ -1,4 +1,7 @@
+from OCC.Core import BRep
+from OCC.Core.BRep import BRep_Tool
 from OCC.Core.TopoDS import TopoDS_Solid
+from OCCUtils import Topo
 from OCCUtils.Common import project_point_on_plane, normal_vector_from_plane, intersect_shape_by_line, assert_isdone
 import itertools
 from OCCUtils.solid import Solid as OCCUtilsSolid
@@ -66,6 +69,11 @@ class SolidFaceValidator():
             else:
                 raise NotImplementedError("Need to handle odd shapes")
 
+            t = Topo(s)
+            vertices = [v for v in t.vertices()]
+            pnts = [BRep_Tool.Pnt(v) for v in vertices]
+            pts += pnts
+
         normal_vec = normal_vector_from_plane(pln)
         normal_dir = gp_Dir(normal_vec)
         lines = [gp_Lin(p, normal_dir) for p in pts]
@@ -81,6 +89,14 @@ class SolidFaceValidator():
                 groups.append({l})
 
         lines = [g.pop() for g in groups]
+
+        # Make sure lines are all perp to the plane
+        import numpy as np
+        line_dirs = [np.array([l.Direction().X(), l.Direction().Y(), l.Direction().Z()]) for l in lines]
+        plane_normal = pln.Axis().Direction()
+        plane_normal = np.array([plane_normal.X(), plane_normal.Y(), plane_normal.Z()])
+        lines_normal = [np.linalg.norm(np.cross(ld, plane_normal)) < 1e-3 for ld in line_dirs]
+        assert all(lines_normal)
 
         # We have to use lists here rather than sets or dicts, because the solids undergo very minor deviations
         # while operated on by OCC, so we can't get matching hashes

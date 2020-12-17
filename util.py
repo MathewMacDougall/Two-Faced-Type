@@ -289,8 +289,8 @@ def is_faces_overlap(face1, face2, threshold=1):
     f1 = Face(face1)
     f2 = Face(face2)
 
-    assert f1.is_planar()
-    assert f2.is_planar()
+    if not (f1.is_planar() and f2.is_planar()):
+        return False
 
     gprop1 = BRepGProp_Face(f1)
     normal_point1 = gp_Pnt(0, 0, 0)
