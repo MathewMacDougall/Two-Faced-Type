@@ -316,4 +316,6 @@ def is_faces_overlap(face1, face2, threshold=1):
     if not intersection:
         return False
     intersection_area = poly1.intersection(poly2).area
-    return intersection_area > threshold
+
+    result = intersection_area > threshold
+    return result

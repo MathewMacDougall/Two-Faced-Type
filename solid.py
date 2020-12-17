@@ -1,8 +1,10 @@
 from OCC.Core.TopoDS import TopoDS_Solid
+from OCC.Extend.TopologyUtils import TopologyExplorer
 from OCCUtils.Common import GpropsFromShape
 from OCCUtils.base import GlobalProperties
 from bounding_box import BoundingBox
-from util import distance
+from util import distance, is_faces_overlap
+from OCCUtils.Common import minimum_distance
 
 
 class Solid():
@@ -46,6 +48,11 @@ class Solid():
     def __ne__(self, other):
         return not self.__eq__(other)
 
+def is_bbox_touching(solid1, solid2):
+    assert isinstance(solid1, Solid)
+    assert isinstance(solid2, Solid)
+    return solid1.bbox().dist(solid2.bbox()) < 1e-3
+
 
 def get_solids_with_touching_bbox(solids, solid):
     assert isinstance(solids, list)
@@ -53,7 +60,30 @@ def get_solids_with_touching_bbox(solids, solid):
 
     result = []
     for s in solids:
-        if s != solid and s.bbox().dist(solid.bbox()) < 1e-3:
+        if s != solid and is_bbox_touching(s, solid):
             result.append(s)
 
     return result
+
+def is_solids_adjacent(solid1, solid2):
+    assert isinstance(solid1, TopoDS_Solid)
+    assert isinstance(solid2, TopoDS_Solid)
+
+    s1 = Solid(solid1)
+    s2 = Solid(solid2)
+
+    if not is_bbox_touching(s1, s2):
+        return False
+
+    faces1 = [f for f in TopologyExplorer(solid1).faces()]
+    faces2 = [f for f in TopologyExplorer(solid2).faces()]
+
+    for f1 in faces1:
+        for f2 in faces2:
+            overlap = is_faces_overlap(f1, f2)
+            close = minimum_distance(f1, f2)[0] < 1
+            if overlap and close:
+                return True
+
+    return False
+

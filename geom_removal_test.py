@@ -22,10 +22,13 @@ class TestGeomRemoval(unittest.TestCase):
         self.face_T = face_factory.create_char('T', height_mm)
         self.face_Q = face_factory.create_char('Q', height_mm)
         self.face_4 = face_factory.create_char('4', height_mm)
+        self.face_L = face_factory.create_char('L', height_mm)
+        self.face_N = face_factory.create_char('N', height_mm)
         self.compound_HE = combine_faces(self.face_H, self.face_E, height_mm)
         self.compound_GE = combine_faces(self.face_G, self.face_E, height_mm)
         self.compound_VT = combine_faces(self.face_V, self.face_T, height_mm)
         self.compound_Q4 = combine_faces(self.face_Q, self.face_4, height_mm)
+        self.compound_NL = combine_faces(self.face_N, self.face_L, height_mm)
 
     def test_order_of_removal(self):
         all_solids = split_compound(self.compound_HE)
@@ -97,9 +100,9 @@ class TestGeomRemoval(unittest.TestCase):
         display.FitAll()
         start_display()
 
-    def test_remove_geom_Q4(self):
-        result = remove_redundant_geom(self.compound_Q4)
-        display.DisplayShape(self.compound_Q4, color="WHITE", transparency=0.7)
+    def test_remove_geom_NL(self):
+        result = remove_redundant_geom(self.compound_NL)
+        display.DisplayShape(self.compound_NL, color="WHITE", transparency=0.7)
         display.DisplayShape(result)
 
         display.FitAll()

@@ -2,11 +2,11 @@ from OCC.Core.BRep import BRep_Builder
 
 from OCCUtils.base import BaseObject
 from OCCUtils.Common import to_string
-from OCCUtils.solid import Solid
 from graph import Graph
 from bounding_box import BoundingBox, Point
 from util import *
 from collections import deque
+from solid import *
 from solid_face_validator import SolidFaceValidator
 from OCCUtils.Construct import compound as make_compound
 
@@ -53,9 +53,10 @@ def create_solid_graph(solids):
         assert isinstance(node1, Node)
         assert isinstance(node2, Node)
 
-        overlap = node1.bbox().overlaps(node2.bbox(), threshold=1)
-        close = node1.bbox().dist(node2.bbox()) < 0.1
-        return overlap and close
+        return is_solids_adjacent(node1.solid(), node2.solid())
+        # overlap = node1.bbox().overlaps(node2.bbox(), threshold=1)
+        # close = node1.bbox().dist(node2.bbox()) < 0.1
+        # return overlap and close
 
     nodes = {Node(s) for s in solids}
     visited = set()

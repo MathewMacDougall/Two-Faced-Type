@@ -75,6 +75,39 @@ class SolidTest(unittest.TestCase):
         result = get_solids_with_touching_bbox(solids, solid1)
         self.assertEqual(0, len(result))
 
+    def test_is_solids_adjacent_fully_overlapping_solids(self):
+        solid1 = BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), gp_Pnt(10, 10, 10)).Shape()
+        solid2 = BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), gp_Pnt(10, 10, 10)).Shape()
+        self.assertTrue(is_solids_adjacent(solid1, solid2))
+
+    def test_is_solids_adjacent_faces_touching(self):
+        solid1 = BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), gp_Pnt(10, 10, 10)).Shape()
+        solid2 = BRepPrimAPI_MakeBox(gp_Pnt(10, 0, 0), gp_Pnt(20, 10, 10)).Shape()
+        self.assertTrue(is_solids_adjacent(solid1, solid2))
+
+    def test_is_solids_adjacent_partially_overlapping_faces(self):
+        solid1 = BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), gp_Pnt(10, 10, 10)).Shape()
+        solid2 = BRepPrimAPI_MakeBox(gp_Pnt(10, 6, 5), gp_Pnt(20, 15, 15)).Shape()
+        self.assertTrue(is_solids_adjacent(solid1, solid2))
+
+    def test_is_solids_adjacent_edges_touching(self):
+        solid1 = BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), gp_Pnt(10, 10, 10)).Shape()
+        solid2 = BRepPrimAPI_MakeBox(gp_Pnt(10, 10, 0), gp_Pnt(20, 20, 10)).Shape()
+        result = is_solids_adjacent(solid1, solid2)
+        # if f1 is not None and f2 is not None:
+        #     display.DisplayShape(solid1, color="BLUE", transparency=0.8)
+        #     display.DisplayShape(solid2, color="CYAN", transparency=0.8)
+        #     display.DisplayShape(f1, color="RED", transparency=0.0)
+        #     display.DisplayShape(f2, color="RED", transparency=0.0)
+        #     start_display()
+
+        self.assertFalse(result)
+
+    def test_is_solids_adjacent_corners_touching(self):
+        solid1 = BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), gp_Pnt(10, 10, 10)).Shape()
+        solid2 = BRepPrimAPI_MakeBox(gp_Pnt(10, 10, 10), gp_Pnt(20, 20, 20)).Shape()
+        self.assertFalse(is_solids_adjacent(solid1, solid2))
+
 
 if __name__ == '__main__':
     unittest.main()
