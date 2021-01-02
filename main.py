@@ -3,7 +3,7 @@ from pathlib import Path
 import argparse
 from combiner import *
 from geom_removal import remove_redundant_geometry
-from stl import save_to_stl
+from stl import save_to_stl, save_to_step
 from OCC.Display.SimpleGui import init_display
 from face_factory import FaceFactory
 
@@ -23,7 +23,7 @@ def main(word1, word2, height_mm, output_dir):
     face_factory = FaceFactory(face_images_dir)
 
     letters, faces1, faces2 = combine_words(word1, word2, face_factory, height_mm)
-    letters = remove_redundant_geometry(letters)
+    # letters = remove_redundant_geometry(letters)
     letters = offset_shapes(letters, height_mm)
 
     for letter in letters:
@@ -31,6 +31,7 @@ def main(word1, word2, height_mm, output_dir):
             display.DisplayShape(letter)
 
     save_to_stl(letters, output_dir)
+    save_to_step(letters, output_dir)
 
     start_display()
 

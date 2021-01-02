@@ -4,6 +4,7 @@ import os
 import errno
 from OCC.Core.StlAPI import StlAPI_Writer, StlAPI_Reader
 from OCC.Core.TopoDS import TopoDS_Shape
+from OCC.Extend.DataExchange import write_step_file
 
 
 def read_stl(filepath):
@@ -37,3 +38,16 @@ def save_to_stl(shapes, dirpath=Path.home()):
     for index, shape in enumerate(shapes):
         filepath = Path(dirpath, "combined_shape_" + str(index + 1) + ".stl")
         stl_writer.Write(shape, str(filepath))
+
+def save_to_step(shapes, dirpath=Path.home()):
+    assert isinstance(shapes, list)
+
+    try:
+        os.makedirs(Path(dirpath))
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
+    for index, shape in enumerate(shapes):
+        filepath = Path(dirpath, "combined_shape_" + str(index + 1) + ".step")
+        write_step_file(shape, str(filepath))
